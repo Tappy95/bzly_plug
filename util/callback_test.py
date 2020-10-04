@@ -36,8 +36,8 @@ async def pcdd_call_back_test():
     }
     print(params['keycode'])
     async with aiohttp.ClientSession() as client:
-        # async with client.get('http://lottery.shouzhuan518.com/api/tpGame/pcddCallback', params=params) as resp:
-        async with client.get('http://localhost:7999/pcddcallback', params=params) as resp:
+        async with client.get('http://lottery.shouzhuan518.com/py/pcddcallback', params=params) as resp:
+        # async with client.get('http://localhost:7999/pcddcallback', params=params) as resp:
             assert resp.status == 200
             r = await resp.json()
             print(r)
@@ -80,8 +80,8 @@ async def xw_call_back_test():
     }
     print(params['keycode'])
     async with aiohttp.ClientSession() as client:
-        # async with client.get('http://lottery.shouzhuan518.com/api/tpGame/pcddCallback', params=params) as resp:
-        async with client.get('http://localhost:7999/xwcallback', params=params) as resp:
+        async with client.get('http://lottery.shouzhuan518.com/py/xwcallback', params=params) as resp:
+        # async with client.get('http://localhost:7999/xwcallback', params=params) as resp:
             assert resp.status == 200
             r = await resp.json()
             print(r)

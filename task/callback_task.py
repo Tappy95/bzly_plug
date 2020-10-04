@@ -45,7 +45,7 @@ async def cash_exchange(connection, user_id, amount, changed_type, reason, remar
                 "amount": amount,
                 "flow_type": flow_type,
                 "changed_type": changed_type,
-                "changed_time": int(time.time()),
+                "changed_time": int(round(time.time() * 1000)),
                 "status": 1,
                 "account_type": 0,
                 "reason": reason,
