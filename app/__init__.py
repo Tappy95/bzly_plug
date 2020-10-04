@@ -56,7 +56,9 @@ async def close_db(app):
 
 async def init_redis(app):
     app['redis_engine'] = await aioredis.create_redis_pool(
-        address=REDIS_URL, password=REDIS_PASSWORD)
+        address=REDIS_URL
+        # password=REDIS_PASSWORD
+    )
     logger.info("连接Redis成功")
 
 
