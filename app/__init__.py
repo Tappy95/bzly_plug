@@ -5,8 +5,8 @@ from aiohttp import web
 
 from app.index import views
 from config import *
-from sqlalchemy import create_engine
-# from aiomysql.sa import create_engine
+# from sqlalchemy import create_engine
+from aiomysql.sa import create_engine
 
 from util.log import logger
 from .middleware import db_middleware, jwt_verify, redis_middleware
@@ -33,25 +33,19 @@ app = web.Application(middlewares=[db_middleware, redis_middleware])
 
 
 async def init_db(app):
-    # app['db_engine'] = create_engine(
-    #     # pool_pre_ping=SQLALCHEMY_POOL_PRE_PING,
-    #     echo=SQLALCHEMY_ECHO,
-    #     # pool_size=SQLALCHEMY_POOL_SIZE,
-    #     # max_overflow=SQLALCHEMY_POOL_MAX_OVERFLOW,
-    #     pool_recycle=SQLALCHEMY_POOL_RECYCLE,
-    #     autocommit=True,
-    #     user=DB_USER_NAME, db=DB_DATABASE_NAME,
-    #     host=DB_SEVER_ADDR, port=DB_SEVER_PORT, password=DB_USER_PW,
-    #     maxsize=10
-    # )
-    app['db_engine'] = create_engine("mysql://{}:{}@{}:{}/{}".format(
-        DB_USER_NAME,
-        DB_USER_PW,
-        DB_SEVER_ADDR,
-        DB_SEVER_PORT,
-        DB_DATABASE_NAME
-    ))
+    app['db_engine'] = await create_engine(
+        # pool_pre_ping=SQLALCHEMY_POOL_PRE_PING,
+        echo=SQLALCHEMY_ECHO,
+        # pool_size=SQLALCHEMY_POOL_SIZE,
+        # max_overflow=SQLALCHEMY_POOL_MAX_OVERFLOW,
+        pool_recycle=SQLALCHEMY_POOL_RECYCLE,
+        autocommit=True,
+        user=DB_USER_NAME, db=DB_DATABASE_NAME,
+        host=DB_SEVER_ADDR, port=DB_SEVER_PORT, password=DB_USER_PW,
+        maxsize=10
+    )
     logger.info("连接DB成功")
+
 
 
 async def close_db(app):

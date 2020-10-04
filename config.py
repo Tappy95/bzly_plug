@@ -4,8 +4,6 @@ ENV_TYPE = os.environ.get('ENV_TYPE', '')
 # print(ENV_TYPE)
 PRODUCTION_ENV = True if ENV_TYPE == 'PRODUCTION' else False
 
-
-
 DB_USER_NAME = "online_db_accout" if PRODUCTION_ENV else "root"
 DB_USER_PW = "JdNH9QN52Nd7Pox58J7WmaD5nLiQ" if PRODUCTION_ENV else "!Syy950507"
 DB_SEVER_ADDR = "rm-m5epui2mr0l38qot98o.mysql.rds.aliyuncs.com" if PRODUCTION_ENV else "cdb-nfyowpkz.gz.tencentcdb.com"
@@ -18,7 +16,7 @@ SQLALCHEMY_DATABASE_URI = "mysql+pymysql://{name:s}:{pw:s}@{addr:s}:{port}/{db:s
     addr=DB_SEVER_ADDR,
     db=DB_DATABASE_NAME,
     port=DB_SEVER_PORT
-    )
+)
 
 SQLALCHEMY_POOL_PRE_PING = True
 SQLALCHEMY_ECHO = False if PRODUCTION_ENV else True
@@ -71,8 +69,6 @@ OUTPUT_NSQ_CONF = {
 
 REPORT_TASK_TOPIC = "shopee_analysis_report"
 
-
 SYSTEM_NAME = "shopee"
-
 
 AIOHTTP_PORT = 7999 if PRODUCTION_ENV else 7999

@@ -2,7 +2,7 @@ from datetime import datetime
 
 import jwt
 from aiohttp import web
-from sqlalchemy.orm import sessionmaker
+# from sqlalchemy.orm import sessionmaker
 
 import config
 from aiohttp.web import middleware
@@ -22,10 +22,9 @@ from util.log import logger
 @middleware
 async def db_middleware(request, handler):
     engine = request.app['db_engine']
-    Session = sessionmaker(bind=engine)
-    session = Session()
-    request['db_connection'] = session
-    return await handler(request)
+    async with engine.acquire() as conn:
+        request['db_connection'] = conn
+        return await handler(request)
 
 
 @middleware
