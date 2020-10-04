@@ -24,15 +24,15 @@ SQLALCHEMY_POOL_SIZE = 0
 SQLALCHEMY_POOL_MAX_OVERFLOW = -1
 SQLALCHEMY_POOL_RECYCLE = 120
 
-ELASTIC_HOST = "10.0.1.3" if PRODUCTION_ENV else "es-fx731b5q.public.tencentelasticsearch.com"
-ELASTIC_PORT = 9200 if PRODUCTION_ENV else 9200
-ELASTIC_INDEX = "" if PRODUCTION_ENV else ""
-ELASTIC_DOC_TYPE = "" if PRODUCTION_ENV else ""
-ELASTIC_VALUES = "" if PRODUCTION_ENV else ""
-ELASTIC_USE_SSL = True
-ELASTIC_TIMEOUT = 60
-ELASTIC_USERNAME = "elastic" if PRODUCTION_ENV else "elastic"
-ELASTIC_PASSWORD = "$EStest.813" if PRODUCTION_ENV else "$EStest.813"
+# ELASTIC_HOST = "10.0.1.3" if PRODUCTION_ENV else "es-fx731b5q.public.tencentelasticsearch.com"
+# ELASTIC_PORT = 9200 if PRODUCTION_ENV else 9200
+# ELASTIC_INDEX = "" if PRODUCTION_ENV else ""
+# ELASTIC_DOC_TYPE = "" if PRODUCTION_ENV else ""
+# ELASTIC_VALUES = "" if PRODUCTION_ENV else ""
+# ELASTIC_USE_SSL = True
+# ELASTIC_TIMEOUT = 60
+# ELASTIC_USERNAME = "elastic" if PRODUCTION_ENV else "elastic"
+# ELASTIC_PASSWORD = "$EStest.813" if PRODUCTION_ENV else "$EStest.813"
 # ELASTICSEARCH_URL = \
 #     f'http://{ELASTIC_USERNAME}:{ELASTIC_PASSWORD}@{ELASTIC_HOST}:{ELASTIC_PORT}' \
 #         if PRODUCTION_ENV else "http://47.102.220.1:9200"
@@ -40,11 +40,11 @@ ELASTIC_PASSWORD = "$EStest.813" if PRODUCTION_ENV else "$EStest.813"
 #         if PRODUCTION_ENV else "https://elastic:$EStest.813@es-fx731b5q.public.tencentelasticsearch.com:9200/"
 # ELASTICSEARCH_URL = f"https://elastic:$EStest.813@es-fx731b5q.public.tencentelasticsearch.com:9200/"
 # ELASTIC_VALUES = {'index': "ebay", 'doc_type': "ebay_product"}
-ELASTICSEARCH_URL = [{'host': ELASTIC_HOST, 'port': ELASTIC_PORT, 'user_ssl': ELASTIC_USE_SSL,
-                      'http_auth': (ELASTIC_USERNAME, ELASTIC_PASSWORD)}] \
-    if PRODUCTION_ENV else "https://elastic:$EStest.813@es-fx731b5q.public.tencentelasticsearch.com:9200/"
-
-JWT_SECRET = "secret"
+# ELASTICSEARCH_URL = [{'host': ELASTIC_HOST, 'port': ELASTIC_PORT, 'user_ssl': ELASTIC_USE_SSL,
+#                       'http_auth': (ELASTIC_USERNAME, ELASTIC_PASSWORD)}] \
+#     if PRODUCTION_ENV else "https://elastic:$EStest.813@es-fx731b5q.public.tencentelasticsearch.com:9200/"
+#
+# JWT_SECRET = "secret"
 
 REDIS_HOST = "10.0.1.33" if PRODUCTION_ENV else "45.35.226.130"
 REDIS_PORT = 6379 if PRODUCTION_ENV else 13111
@@ -56,19 +56,22 @@ REDIS_URL = f'redis://{REDIS_HOST}:{REDIS_PORT}/{REDIS_DB_NUMBER}'
 # NSQ_NSQD_TCP_ADDR = 'bd-nsqd:4150' if PRODUCTION_ENV else '134.73.133.2:25750'
 # NSQ_NSQD_HTTP_ADDR = 'bd-nsqd:4151' if PRODUCTION_ENV else '134.73.133.2:25751'
 
-NSQ_LOOKUPD_HTTP_ADDR = 'bd-nsqlookupd:4161' if PRODUCTION_ENV else '47.112.96.218:4161'
-NSQ_NSQD_TCP_ADDR = 'bd-nsqd:4150' if PRODUCTION_ENV else '47.112.96.218:4150'
-NSQ_NSQD_HTTP_ADDR = 'bd-nsqd:4151' if PRODUCTION_ENV else '47.112.96.218:4151'
+# NSQ_LOOKUPD_HTTP_ADDR = 'bd-nsqlookupd:4161' if PRODUCTION_ENV else '47.112.96.218:4161'
+# NSQ_NSQD_TCP_ADDR = 'bd-nsqd:4150' if PRODUCTION_ENV else '47.112.96.218:4150'
+# NSQ_NSQD_HTTP_ADDR = 'bd-nsqd:4151' if PRODUCTION_ENV else '47.112.96.218:4151'
+#
+# INPUT_NSQ_CONF = {
+#     'lookupd_http_addresses': [NSQ_LOOKUPD_HTTP_ADDR]
+# }
+# OUTPUT_NSQ_CONF = {
+#     'nsqd_tcp_addresses': NSQ_NSQD_TCP_ADDR
+# }
 
-INPUT_NSQ_CONF = {
-    'lookupd_http_addresses': [NSQ_LOOKUPD_HTTP_ADDR]
-}
-OUTPUT_NSQ_CONF = {
-    'nsqd_tcp_addresses': NSQ_NSQD_TCP_ADDR
-}
-
-REPORT_TASK_TOPIC = "shopee_analysis_report"
-
-SYSTEM_NAME = "shopee"
+# REPORT_TASK_TOPIC = "shopee_analysis_report"
+#
+# SYSTEM_NAME = "shopee"
 
 AIOHTTP_PORT = 7999 if PRODUCTION_ENV else 7999
+
+XW_KEY = "ba9g60295zs208pk"
+PCDD_KEY = "PCDDXW5_QLQW_11474"

@@ -64,8 +64,9 @@ async def cash_exchange(connection, user_id, amount, changed_type, reason, remar
         except Exception as e:
             logger.info(e)
             logger.info("修改金币失败,请联系管理员")
+            return False
 
-    return
+    return True
 
 
 # 裂变任务
@@ -106,4 +107,4 @@ async def fission_schema(connection, aimuser_id, task_coin, is_one=True):
                 is_one=False
             )
 
-    return
+    return True
