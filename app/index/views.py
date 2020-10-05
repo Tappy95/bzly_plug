@@ -1,11 +1,12 @@
 import json
+import time
 from datetime import datetime
 
 from aiohttp import web
 from sqlalchemy import select, update
 from sqlalchemy.dialects.mysql import insert
 
-from models.alchemy_models import MUserInfo, t_tp_pcdd_callback, PDictionary, t_tp_xw_callback
+from models.alchemy_models import MUserInfo, t_tp_pcdd_callback, PDictionary, t_tp_xw_callback, TpTaskInfo
 from task.callback_task import fission_schema, cash_exchange
 from task.check_sign import check_xw_sign
 from util.log import logger
@@ -228,3 +229,61 @@ async def get_xwcallback(request):
         json_result = {"success": 0, "message": "数据插入失败"}
 
     return web.json_response(json_result)
+
+
+@routes.post('/get/hightasks')
+async def add_hightasks(request):
+    r_json = await request.json()
+    connection = request['db_connection']
+    parsed_results = r_json['data']['records']
+    db_results = []
+    for parsed_result in parsed_results:
+        db_result = {
+            "id": parsed_result['taskId'],
+            "name": parsed_result['name'],
+            "logo": parsed_result['icon'],
+            "type_id": 1,
+            # 1-高额收益2-注册任务3-实名认证4-超简单5-其他
+            "label": parsed_result['tags'],
+            "reward": parsed_result['price'],
+            "is_upper": 1,
+            "is_signin": 1,
+            "task_channel": "Aibianxian",
+            "create_time": int(round(time.time() * 1000)),
+            "update_time": int(round(time.time() * 1000)),
+            "orders": 1,
+            "task_info_url": parsed_result['detailUrl'],
+
+            "fulfil_time": None,
+            "time_unit": None,
+            "channel_task_number": None,
+            "surplus_channel_task_number": None,
+            "is_order": None,
+            "order_time": None,
+            "drReward": None,
+        }
+        db_results.append(db_result)
+
+    # save product history
+    insert_stmt = insert(TpTaskInfo)
+    on_duplicate_key_stmt = insert_stmt.on_duplicate_key_update(
+        id=insert_stmt.inserted.id,
+        name=insert_stmt.inserted.name,
+        logo=insert_stmt.inserted.logo,
+        type_id=insert_stmt.inserted.type_id,
+        label=insert_stmt.inserted.label,
+        reward=insert_stmt.inserted.reward,
+        is_upper=insert_stmt.inserted.is_upper,
+        is_signin=insert_stmt.inserted.is_signin,
+        task_channel=insert_stmt.inserted.task_channel,
+        create_time=insert_stmt.inserted.create_time,
+        update_time=insert_stmt.inserted.update_time,
+        orders=insert_stmt.inserted.orders,
+        task_info_url=insert_stmt.inserted.task_info_url
+    )
+    await connection.execute(on_duplicate_key_stmt, db_results)
+
+    return web.json_response({
+        "ok": "爱变现高额任务拉去成功",
+        "count": len(db_results)
+    })

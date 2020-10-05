@@ -1787,7 +1787,7 @@ class TpTaskInfo(Base):
 
     id = Column(INTEGER(11), primary_key=True)
     name = Column(String(64), comment='任务名称')
-    logo = Column(String(64), comment='任务logo')
+    logo = Column(String(255), comment='任务logo')
     type_id = Column(INTEGER(10), comment='任务类型')
     label = Column(String(128), comment='任务标签逗号分隔')
     reward = Column(DECIMAL(10, 2), comment='奖励单位元')
