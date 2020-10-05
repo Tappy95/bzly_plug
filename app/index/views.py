@@ -118,12 +118,13 @@ async def get_pcddcallback(request):
             aimuser_id=pcdd_callback_params['userid'],
             task_coin=task_coin
         )
-        update_callback_status = update(t_tp_pcdd_callback).values({
-            "status": 2
-        }).where(
-            t_tp_pcdd_callback.c.ordernum == pcdd_callback_params['ordernum']
-        )
-        await connection.execute(update_callback_status)
+        if cash_result and fs_result:
+            update_callback_status = update(t_tp_pcdd_callback).values({
+                "status": 2
+            }).where(
+                t_tp_pcdd_callback.c.ordernum == pcdd_callback_params['ordernum']
+            )
+            await connection.execute(update_callback_status)
         json_result = {"success": 1, "message": "接收成功"}
     except Exception as e:
         logger.info(e)
@@ -206,7 +207,7 @@ async def get_xwcallback(request):
         rec_ctm = await cur_ctm.fetchone()
         task_coin = callback_params['money'] * int(rec_ctm['dic_value'])
 
-        await cash_exchange(
+        c_result = await cash_exchange(
             connection,
             user_id=callback_params['appsign'],
             amount=task_coin,
@@ -215,17 +216,18 @@ async def get_xwcallback(request):
             remarks=callback_params['adname'],
             flow_type=1
         )
-        await fission_schema(
+        fs_result = await fission_schema(
             connection,
             aimuser_id=callback_params['appsign'],
             task_coin=task_coin
         )
-        update_callback_status = update(t_tp_xw_callback).values({
-            "status": 1
-        }).where(
-            t_tp_xw_callback.c.ordernum == callback_params['ordernum']
-        )
-        await connection.execute(update_callback_status)
+        if c_result and fs_result:
+            update_callback_status = update(t_tp_xw_callback).values({
+                "status": 1
+            }).where(
+                t_tp_xw_callback.c.ordernum == callback_params['ordernum']
+            )
+            await connection.execute(update_callback_status)
         json_result = {"success": 1, "message": "接收成功"}
     except Exception as e:
         logger.info(e)
@@ -235,7 +237,7 @@ async def get_xwcallback(request):
 
 
 @routes.post('/ibxcallback')
-async def get_xwcallback(request):
+async def get_ibxcallback(request):
     connection = request['db_connection']
     r_json = await request.post()
     print(r_json)
@@ -306,26 +308,130 @@ async def get_xwcallback(request):
         rec_ctm = await cur_ctm.fetchone()
         task_coin = callback_params['user_reward'] * int(rec_ctm['dic_value'])
 
-        await cash_exchange(
+        c_result = await cash_exchange(
             connection,
             user_id=callback_params['target_id'],
             amount=task_coin,
             changed_type=7,
-            reason="享玩游戏任务奖励",
+            reason="爱变现游戏任务奖励",
             remarks=callback_params['game_name'],
             flow_type=1
         )
-        await fission_schema(
+        fs_result = await fission_schema(
             connection,
             aimuser_id=callback_params['target_id'],
             task_coin=task_coin
         )
-        update_callback_status = update(t_tp_ibx_callback).values({
-            "status": 1
-        }).where(
-            t_tp_ibx_callback.c.order_id == callback_params['order_id']
+        if c_result and fs_result:
+            update_callback_status = update(t_tp_ibx_callback).values({
+                "status": 1
+            }).where(
+                t_tp_ibx_callback.c.order_id == callback_params['order_id']
+            )
+            await connection.execute(update_callback_status)
+        json_result = {"code": 200, "message": "接收成功"}
+    except Exception as e:
+        logger.info(traceback.print_exc())
+        logger.info(traceback.format_exc())
+        logger.info(e)
+        json_result = {"code": 0, "message": "数据插入失败"}
+
+    return web.json_response(json_result)
+
+
+@routes.post('/ibxtaskcallback')
+async def get_ibxtaskcallback(request):
+    connection = request['db_connection']
+    r_json = await request.json()
+    print(r_json)
+    is_ordernum = select([t_tp_ibx_callback]).where(
+        t_tp_ibx_callback.c.order_id == r_json.get('order_id')
+    )
+    cursor = await connection.execute(is_ordernum)
+    record = await cursor.fetchone()
+    logger.info(record)
+    if record:
+        return web.json_response({"code": 200, "message": "订单已接收"})
+    try:
+        callback_params = {
+            "app_key": r_json.get('app_key'),
+            "device": r_json.get('device'),
+            "device_info": int(r_json.get('device_info')),
+            "target_id": r_json.get('target_id'),
+            "unit": r_json.get('unit'),
+            "time_end": int(r_json.get('time_end')),
+            "user_reward": float(r_json.get('user_reward')),
+            "app_reward": float(r_json.get('app_reward')),
+            # "game_name": r_json.get('game_name'),
+            # "game_id": int(r_json.get('game_id')),
+            "sign": r_json.get('sign'),
+            "content": r_json.get('content'),
+            "order_id": int(r_json.get('order_id')),
+            # "type": int(r_json.get('type')),
+            "status": 0,
+            "update_time": datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        }
+        check_key = check_ibx_sign(
+            keysign=r_json.get('sign'),
+            app_key=r_json.get('app_key'),
+            device=r_json.get('device'),
+            device_info=r_json.get('device_info'),
+            target_id=r_json.get('target_id'),
+            notify_url=IBX_NOTIFY_URL
         )
-        await connection.execute(update_callback_status)
+        if not check_key:
+            return web.json_response({"code": 0, "message": "验签失败"})
+        ins = insert(t_tp_ibx_callback)
+        insert_stmt = ins.values(callback_params)
+        on_duplicate_key_stmt = insert_stmt.on_duplicate_key_update(
+            app_key=insert_stmt.inserted.app_key,
+            device=insert_stmt.inserted.device,
+            device_info=insert_stmt.inserted.device_info,
+            target_id=insert_stmt.inserted.target_id,
+            unit=insert_stmt.inserted.unit,
+            time_end=insert_stmt.inserted.time_end,
+            user_reward=insert_stmt.inserted.user_reward,
+            app_reward=insert_stmt.inserted.app_reward,
+            # game_name=insert_stmt.inserted.game_name,
+            # game_id=insert_stmt.inserted.game_id,
+            sign=insert_stmt.inserted.sign,
+            content=insert_stmt.inserted.content,
+            order_id=insert_stmt.inserted.order_id,
+            # type=insert_stmt.inserted.type,
+            status=insert_stmt.inserted.status,
+            update_time=insert_stmt.inserted.update_time
+        )
+        await connection.execute(on_duplicate_key_stmt)
+
+        # 查询金币比列
+        select_coin_to_money = select([PDictionary]).where(
+            PDictionary.dic_name == "coin_to_money"
+        )
+        cur_ctm = await connection.execute(select_coin_to_money)
+        rec_ctm = await cur_ctm.fetchone()
+        task_coin = callback_params['user_reward'] * int(rec_ctm['dic_value'])
+
+        c_result = await cash_exchange(
+            connection,
+            user_id=callback_params['target_id'],
+            amount=task_coin,
+            changed_type=7,
+            reason="爱变现高额任务奖励",
+            remarks=callback_params['content'],
+            flow_type=1
+        )
+        fs_result = await fission_schema(
+            connection,
+            aimuser_id=callback_params['target_id'],
+            task_coin=task_coin
+        )
+        if c_result and fs_result:
+            update_callback_status = update(t_tp_ibx_callback).values({
+                "status": 1
+            }).where(
+                t_tp_ibx_callback.c.order_id == callback_params['order_id']
+            )
+            await connection.execute(update_callback_status)
         json_result = {"code": 200, "message": "接收成功"}
     except Exception as e:
         logger.info(traceback.print_exc())

@@ -65,6 +65,8 @@ async def cash_exchange(connection, user_id, amount, changed_type, reason, remar
             logger.info(e)
             logger.info("修改金币失败,请联系管理员")
             return False
+    else:
+        return False
 
     return True
 
