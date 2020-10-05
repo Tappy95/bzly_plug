@@ -1,7 +1,7 @@
 # coding: utf-8
 import json
 
-from sqlalchemy import Column, DECIMAL, Date, DateTime, Float, Index, String, Table, Text, text
+from sqlalchemy import Column, DECIMAL, Date, DateTime, Float, Index, String, Table, Text, text, BigInteger, Integer
 from sqlalchemy.dialects.mysql import BIGINT, INTEGER, TINYINT, VARCHAR
 from sqlalchemy.ext.declarative import declarative_base
 
@@ -1932,3 +1932,26 @@ class TpZrbCallback(Base):
     token = Column(String(255))
     createTime = Column(DateTime)
     status = Column(String(11))
+
+
+t_tp_ibx_callback = Table(
+    'tp_ibx_callback', metadata,
+    Column('app_key', String(32), comment='平台的应用id'),
+    Column('device', String(32), comment='ios，安卓'),
+    Column('device_info', BigInteger, comment='安卓传imei,ios传参idfa值'),
+    Column('target_id', String(128), comment='接入平台的用户唯一标示'),
+    Column('unit', String(32), comment='接入平台的奖励单位'),
+    Column('time_end', BigInteger, comment='领取完成时间，格式为yyyyMMddHHmmss，如2009年12月25日9点10分10秒表示为20091225091010'),
+    Column('user_reward', Float(10), comment='应用方应当给予用户奖励(应用平台币计价)'),
+    Column('app_reward', Float(10), comment='平台给予应用奖励'),
+    Column('game_name', String(32), comment='领取奖励的游戏名'),
+    Column('game_id', BigInteger, comment='领取奖励的游戏编号'),
+    Column('sign', String(32),
+           comment='通过签名算法计算得出的签名值，通过签名算法计算得出的签名值，'
+                   '详见签名规则MD5(app_key+device+device_info+target_id+回调地址+app_secret) .toUpperCase'),
+    Column('content', String(32), comment='奖励说明'),
+    Column('order_id', BigInteger, comment='订单号'),
+    Column('type', BigInteger, comment='1试玩赢金，2充值返利，3冲榜福利，4高额试玩'),
+    Column('status', Integer, comment='任务状态1-成功0-失败'),
+    Column('update_time', DateTime, comment='更新时间')
+)
