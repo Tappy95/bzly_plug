@@ -1,0 +1,36 @@
+script
+
+nohup java -Djava.net.preferIPv4Stack=true -Djava.security.egd=file:/dev/./urandom -jar jars/bzly-service-0.0.2-SNAPSHOT.jar > ./out/bzly-service.out 2>&1 < /dev/null &
+nohup java -Djava.net.preferIPv4Stack=true -Djava.security.egd=file:/dev/./urandom -jar jars/bzly-api-0.0.2-SNAPSHOT.jar > ./out/bzly-api.out 2>&1 < /dev/null & 
+
+
+
+ nohup java -Djava.net.preferIPv4Stack=true -Djava.security.egd=file:/dev/./urandom -jar jars/push-web-0.0.1-SNAPSHOT.jar > ./out/bzly-web.out 2>&1 < /dev/null & 
+
+ nohup java -Djava.net.preferIPv4Stack=true -Djava.security.egd=file:/dev/./urandom -jar jars/push-service-0.0.1-SNAPSHOT.jar > ./out/bzly-service.out 2>&1 < /dev/null &
+
+docker run -d -p 2181:2181 -v /root/data/zookeeper:/data/ --name=zookeeper zookeeper 
+docker run -d -p 6379:6379 -v /root/data/redis:/data/ --name redis redis redis-server --appendonly yes
+docker run --name activemq -p 61616:61616 -p 8161:8161 -d rmohr/activemq
+
+!@#blt*nix123
+
+ $redis.813
+
+lsof -n|awk '{print $2}'|sort|uniq -c|sort -nr|more
+
+ll /proc/19211/fd |wc -l
+
+
+应用私钥
+MIIEvQIBADANBgkqhkiG9w0BAQEFAASCBKcwggSjAgEAAoIBAQDOJVDI+paxPU+9ENUbJGn26WqR0jud7R0mrRii9aUSQSX0vj2u9iMDAbv4Rk7pGEdVyWDxodYxKA4h/BIOiV4HDGTsbg9hZybH2QYHyA8Th3I4VZea1/Bw0HHWDLYp9NRq6793eAtfCYvYTaZoog8ZhmKN8ksk9naiW2UJ9qUUZmfJtjNRcJ6HHl751p47+zcpCRjIJzURdfuIVvEGg+nnanq+eOCLR4JD0a3lSq1OFBnIKtIQTTB/gYl6WUxRhIXz3bRm8uKi4y01JBXrDVXdj1kRN6y9CFGfGc0BuwDVpQwHHL1zzZjsaxvzMQZeSHBh33ZKmF0JzDpBBxZt/ItVAgMBAAECggEAL3Cy+K2ChGNhuFbpVAe7QxFQbyJ8icmJjd8D7mytglfvzjUBqQQH5qc9hNNZUZc+w2VGpBTkYAehyPxjg2jldKXLjAWAEKBWcmNlWeEWZx4ikQhRjVbohG3T5LikK1+miryaIXpE06g0wKCODUJOS0d74sLBvE3j21VBGVvjfZ/xdjejexqOmoiFeNdiWHVZqMnLOmnSZZl+1281hADN/e4ppTu6NUYTQcOQ5xkr4zgnM9Vg/iFrayxnaoeqxQULB2F/qgT9tdVaf792+x9lAM27DEa5hgOOMZVCbvmC8G+0UByEiTTEDAKnfiYEALDTTG7QtGh9UqVlH3/vWiN6QQKBgQD3pWgChqaRo40Qqbb/RGBrSlfeO3oN5rEfoA0v+8jo0xDz/xrFl/gLWE/Di8URThxr2RL/AclmYcTKzvVFMCIt5ydYIZpF7CrJbKnpGDK4b/X308w4CPZ82Mec/yDy+hGrG/62pLOf03oFDRCK4Jbu1nMguE1QYAcqP4KdqTQNHQKBgQDVGYZ7KLjYA4b8VwjJtcj/TGMDR3BoHnKhTDq7qFgusVr+Sa5vZTv4MhrWt3Q+zoFDM9PQJUC3ZqBJXTmA0koAqTPY+BqYHedEF1anQ2JnYUN+msepT1QPSAK/4HOGX4UKOBAQJjkmVivt6Q4DIlwgq5qNQkq/nc7X6Le36QZ5mQKBgGcMrj4218NMwluHs71/L3wV4IB6UWzNbTESwcoQxOaVRb2yjupgNXhLFE3zsFpmHY+HMc9pZ+wxjNkzy34x7FcblBSpTu//uUI99GophpmXBUxOFvHOUPtcnZun0ocpJgcEzDYmTRSZxHGroRGZKVVTaW7ZIlrqyrB64xhGG4HFAoGAcBeaJqR3/qB0W73IUJn/nVLn7iyg0xPZBkFbz6QwpncCPyowyEW+8sIgXftn+TWUxu23KBDAZvhjrdOM0NdMt+ZI8IMpMgTgxm9kVF1coLaH00vFZKjmtZcSYy3EdtU93O86e9QvUZwYRW/GwB1Nyp2ZkV5ihUKUL/woz2OS1VkCgYEApjbrqOy69Now93ut8lpcwYZgeN10WEZ8LexlA+i+ODXj35E1s84wDGj8cQCREbrPymqQcenxpaP8F8VOCJ9dVA+u6qQOZpM0zn94SCT9O1G6iP1lcscCHM14B5CNNMXFfMO+zZFit6/zVKiBsBjuW5o5RDyTdkCcyZXp1LA3mKM=
+
+公钥
+MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAziVQyPqWsT1PvRDVGyRp9ulqkdI7ne0dJq0YovWlEkEl9L49rvYjAwG7+EZO6RhHVclg8aHWMSgOIfwSDoleBwxk7G4PYWcmx9kGB8gPE4dyOFWXmtfwcNBx1gy2KfTUauu/d3gLXwmL2E2maKIPGYZijfJLJPZ2oltlCfalFGZnybYzUXCehx5e+daeO/s3KQkYyCc1EXX7iFbxBoPp52p6vnjgi0eCQ9Gt5UqtThQZyCrSEE0wf4GJellMUYSF8920ZvLiouMtNSQV6w1V3Y9ZETesvQhRnxnNAbsA1aUMBxy9c82Y7Gsb8zEGXkhwYd92SphdCcw6QQcWbfyLVQIDAQAB
+
+支付宝公钥
+MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAjKBbnedcfpZE5gcHZZTa8E0x3OmjZndXzh9WKABL9ji8frS6Amm4Vj1NLjLNFd+HGnNUJEkMA478AW/RB27L6iwFknSUTwdiTSKFb4OXFKhgHs0gVBFcHlXcEF0a4U1NaybP4CcrEwgLfoU7dvDnXoMCJudQlbOqVQYxfX0umldQHegLHgdQH6M67bPtWvA9atLum64D1l64hpxv/pziJVoNDiuije5ZtOr1Y26FL4R9fGsAJoE1ZIV0AXd9jQwt0TCRVvyhjnCkESOxSAiqgKzwDxDgwRK1zhB5FRGMqhXmrFOOeyWm5ESseE12Ym4MrCnk3okaq5HPl2JKmpC+XQIDAQAB
+
+
+
+flask-sqlacodegen "mysql://root:!Syy950507@cdb-nfyowpkz.gz.tencentcdb.com:10166/bzly" --outfile "bzly_models.py"  --flask
