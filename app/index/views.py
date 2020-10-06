@@ -8,13 +8,13 @@ from urllib.parse import quote
 from config import *
 
 from aiohttp import web
-from sqlalchemy import select, update
+from sqlalchemy import select, update, and_
 from sqlalchemy.dialects.mysql import insert
 
 from models.alchemy_models import MUserInfo, t_tp_pcdd_callback, PDictionary, t_tp_xw_callback, TpTaskInfo, \
-    t_tp_ibx_callback, TpJxwCallback, TpYwCallback, TpDyCallback
+    t_tp_ibx_callback, TpJxwCallback, TpYwCallback, TpDyCallback, TpZbCallback
 from task.callback_task import fission_schema, cash_exchange
-from task.check_sign import check_xw_sign, check_ibx_sign, check_jxw_sign, check_yw_sign, check_dy_sign
+from task.check_sign import check_xw_sign, check_ibx_sign, check_jxw_sign, check_yw_sign, check_dy_sign, check_zb_sign
 from util.log import logger
 from util.static_methods import serialize
 
@@ -641,12 +641,12 @@ async def post_ywcallback(request):
     # 获取参数
     orderNo = r_post.get("orderNo")
     sign = r_post.get("sign")
-    time = r_post.get("time")
+    get_time = r_post.get("time")
     rewardDataJson = json.loads(r_post.get("rewardDataJson"))
     deal = {
         "orderNo": orderNo,
         "sign": sign,
-        "time": int(time),
+        "time": int(get_time),
         "advertName": rewardDataJson['advertName'],
         "rewardRule": rewardDataJson['rewardRule'],
         "stageId": int(rewardDataJson['stageId']),
@@ -681,7 +681,7 @@ async def post_ywcallback(request):
             time=str(deal['time'])
         )
         if not check_key:
-            return web.json_response({"code": 2, "msg": "未知错误"})
+            return web.json_response({"code": 2, "msg": "签名错误"})
         ins = insert(TpYwCallback)
         insert_stmt = ins.values(deal)
         on_duplicate_key_stmt = insert_stmt.on_duplicate_key_update(
@@ -851,4 +851,119 @@ async def get_dycallback(request):
         logger.info(e)
         logger.info(traceback.print_exc())
         json_result = {"status_code": 400, "message": "未知错误发生"}
+    return web.json_response(json_result)
+
+
+@routes.post('/zbcallback')
+async def post_zbcallback(request):
+    connection = request['db_connection']
+    r_post = await request.post()
+    # 获取参数
+    uid = r_post.get("uid")
+    media_id = r_post.get("media_id")
+    app_id = r_post.get("app_id")
+    dev_code = r_post.get("dev_code")
+    task_id = r_post.get("task_id")
+    code = r_post.get("code")
+    msg = r_post.get("msg")
+    price = float(r_post.get("price"))
+    media_price = float(r_post.get("media_price"))
+    get_time = int(r_post.get("time"))
+    title = r_post.get("title")
+    logo = r_post.get("logo")
+    sign = r_post.get("sign")
+    deal = {
+        "uid": uid,
+        "task_id": task_id,
+        "media_id": media_id,
+        "app_id": app_id,
+        "dev_code": dev_code,
+        "code": code,
+        "msg": msg,
+        "price": price,
+        "media_price": media_price,
+        "time": get_time,
+        "title": title,
+        "logo": logo,
+        "sign": sign,
+        "status": 0,
+        "update_time": datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+    }
+
+    is_ordernum = select([TpZbCallback]).where(
+        and_(
+            TpZbCallback.uid == uid,
+            TpZbCallback.task_id == task_id
+        )
+    )
+    cursor = await connection.execute(is_ordernum)
+    record = await cursor.fetchone()
+    if record:
+        logger.info("订单已存在")
+        return web.json_response({"code": 200, "success": "true"})
+
+    try:
+        check_key = check_zb_sign(
+            r_post=r_post
+        )
+        if not check_key:
+            return web.json_response({"code": 403, "success": "false"})
+        ins = insert(TpZbCallback)
+        insert_stmt = ins.values(deal)
+        on_duplicate_key_stmt = insert_stmt.on_duplicate_key_update(
+            uid=insert_stmt.inserted.uid,
+            task_id=insert_stmt.inserted.task_id,
+            media_id=insert_stmt.inserted.media_id,
+            app_id=insert_stmt.inserted.app_id,
+            dev_code=insert_stmt.inserted.dev_code,
+            code=insert_stmt.inserted.code,
+            msg=insert_stmt.inserted.msg,
+            price=insert_stmt.inserted.price,
+            media_price=insert_stmt.inserted.media_price,
+            time=insert_stmt.inserted.time,
+            title=insert_stmt.inserted.title,
+            logo=insert_stmt.inserted.logo,
+            sign=insert_stmt.inserted.sign,
+            status=insert_stmt.inserted.status,
+            update_time=insert_stmt.inserted.update_time
+        )
+        await connection.execute(on_duplicate_key_stmt)
+
+        # 查询金币比列
+        select_coin_to_money = select([PDictionary]).where(
+            PDictionary.dic_name == "coin_to_money"
+        )
+        cur_ctm = await connection.execute(select_coin_to_money)
+        rec_ctm = await cur_ctm.fetchone()
+        task_coin = deal['price'] * int(rec_ctm['dic_value'])
+
+        c_result = await cash_exchange(
+            connection,
+            user_id=deal['uid'],
+            amount=task_coin,
+            changed_type=7,
+            reason="职伴游戏任务奖励",
+            remarks=deal['title'] + deal['msg'],
+            flow_type=1
+        )
+        fs_result = await fission_schema(
+            connection,
+            aimuser_id=deal['uid'],
+            task_coin=task_coin
+        )
+        if c_result and fs_result:
+            update_callback_status = update(TpZbCallback).values({
+                "status": 1
+            }).where(
+                and_(
+                    TpZbCallback.uid == deal['uid'],
+                    TpZbCallback.task_id == deal['task_id']
+                )
+            )
+            await connection.execute(update_callback_status)
+        json_result = {"code": 200, "success": "true"}
+    except Exception as e:
+        logger.info(e)
+        logger.info(traceback.print_exc())
+        json_result = {"code": 400, "success": "false"}
     return web.json_response(json_result)

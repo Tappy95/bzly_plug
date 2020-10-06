@@ -2022,3 +2022,23 @@ class TpDyCallback(Base):
     sign = Column(String(64), comment='32位MD5加密签名校验\\r\\n除sign外的所有必填项都参与加密')
     status = Column(TINYINT(1), comment='1-成功2-失败')
     update_time = Column(DateTime, comment='更新时间')
+
+
+class TpZbCallback(Base):
+    __tablename__ = 'tp_zb_callback'
+
+    uid = Column(String(64), primary_key=True, nullable=False, comment='媒体方用户id')
+    task_id = Column(String(64), primary_key=True, nullable=False, comment='任务Id')
+    media_id = Column(String(64), comment='媒体id')
+    app_id = Column(String(64), comment='应用id')
+    dev_code = Column(String(128), comment='IMEI/IDFA')
+    code = Column(String(10), comment='0:审核通过   -1：审核失败')
+    msg = Column(String(512), comment='描述（接收后进行urldecode(unicode)处理，字符串中应为中文字符）（审核通过时为“成功”，审核失败时为失败原因）')
+    price = Column(Float(10), comment='用户所得（审核通过）')
+    media_price = Column(Float(10), comment='媒体所得（审核通过）')
+    time = Column(INTEGER(18), comment='时间戳')
+    title = Column(String(128), comment='广告名称')
+    logo = Column(String(255), comment='广告图标')
+    sign = Column(String(128), comment='签名（见签名算法）')
+    status = Column(TINYINT(1), comment='1-成功0-失败')
+    update_time = Column(DateTime, comment='更新时间')

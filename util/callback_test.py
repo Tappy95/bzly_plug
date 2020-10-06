@@ -155,6 +155,53 @@ async def yw_call_back_test():
             print(r)
 
 
+async def zb_call_back_test():
+    # 参数
+    m = hashlib.md5()
+
+    dev_code = "863270643441130"
+    uid = "2cfdd8e67aaf45deb3cb242a1621f2de"
+    task_id = "123"
+    time_now = "1601913600"
+    media_price = "0.85"
+    price = "0.55"
+    logo = "http://www.baidu.com"
+
+    params = {
+        "uid": uid,
+        "media_id": ZB_MEDIA_ID,
+        "app_id": ZB_APP_ID_SEED,
+        "dev_code": dev_code,
+        "task_id": task_id,
+        "code": "0",
+        "msg": "测试一号",
+        "price": price,
+        "media_price": media_price,
+        "time": time_now,
+        "title": "闲鱼任务",
+        "logo": logo,
+        "sign": "1"
+    }
+    sign = params.pop("sign")
+    before_md5 = ""
+    for idx, key in enumerate(sorted(params)):
+        str_ele = key + "=" + params[key]
+        if idx < len(params) - 1:
+            str_ele += "&"
+        before_md5 += str_ele
+    before_md5 += "&key=" + ZB_KEY
+    print(before_md5)
+    params['sign'] = (hashlib.md5(before_md5.encode('utf-8')).hexdigest()).upper()
+    print(params['sign'])
+    async with aiohttp.ClientSession() as client:
+        # async with client.get('http://lottery.shouzhuan518.com/py/xwcallback', params=params) as resp:
+        async with client.post('http://localhost:7999/zbcallback', data=params) as resp:
+            assert resp.status == 200
+            r = await resp.json()
+            print(r)
+
+
+
 if __name__ == '__main__':
     loop = asyncio.get_event_loop()
-    loop.run_until_complete(yw_call_back_test())
+    loop.run_until_complete(zb_call_back_test())

@@ -79,3 +79,22 @@ def check_dy_sign(keysign, advert_id, advert_name, content, created, device_id, 
         return True
     else:
         return False
+
+
+def check_zb_sign(r_post):
+    r_dict = {**r_post}
+    before_md5 = ""
+    keysign = r_dict.pop("sign")
+    for idx, key in enumerate(sorted(r_dict)):
+        str_ele = key + "=" + r_dict[key]
+        if idx < len(r_dict) - 1:
+            str_ele += "&"
+        before_md5 += str_ele
+    before_md5 += "&key=" + ZB_KEY
+    print(before_md5)
+    check_key = (hashlib.md5(before_md5.encode('utf-8')).hexdigest()).upper()
+    logger.info("ZB:server keycode:{},request keycode:{}".format(check_key, keysign))
+    if keysign == check_key:
+        return True
+    else:
+        return False
