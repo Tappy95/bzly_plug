@@ -60,3 +60,19 @@ def check_yw_sign(keysign, rewardDataJson, time):
         return True
     else:
         return False
+
+
+def check_dy_sign(keysign, advert_id, advert_name, content, created, device_id, media_id, media_income, member_income,
+                  order_id, user_id):
+    check_key = (hashlib.md5(
+        (
+                "advert_id=" + advert_id + "&" + "advert_name=" + advert_name + "&" + "content=" + content + "&" +
+                "created=" + created + "&" + "device_id=" + device_id + "&" + "media_id=" + media_id + "&" +
+                "media_income=" + media_income + "&" + "member_income=" + member_income + "&" + "order_id=" + order_id
+                + "&" + "user_id=" + user_id + "&" + "key=" + DY_SECRET).encode(
+            'utf-8')).hexdigest()).lower()
+    logger.info("DY:server keycode:{},request keycode:{}".format(check_key, keysign))
+    if keysign == check_key:
+        return True
+    else:
+        return False

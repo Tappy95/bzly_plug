@@ -2004,3 +2004,21 @@ class TpYwCallback(Base):
     receivedTime = Column(Integer, info='奖励收取时间 (时间戳，单位秒)')
     status = Column('status', Integer, comment='任务状态1-成功0-失败')
     update_time = Column('update_time', DateTime, comment='更新时间')
+
+
+class TpDyCallback(Base):
+    __tablename__ = 'tp_dy_callback'
+
+    order_id = Column(String(64), primary_key=True, comment='奖励订单号（前面带“hb”字符串的为活动订单号，没有的为广告任务订单号，所有订单号唯一')
+    advert_id = Column(INTEGER(32), comment='广告任务ID')
+    advert_name = Column(String(128), comment='广告任务名称')
+    created = Column(INTEGER(18), comment='订单创建时间（奖励时间，时间戳）')
+    media_income = Column(Float(10), comment='媒体广告收益\\r\\n货币单位为后台配置的单位')
+    member_income = Column(Float(10), comment='媒体用户奖励\\r\\n货币单位为后台配置的单位')
+    media_id = Column(String(32), comment='媒体主ID（开发者ID）')
+    user_id = Column(String(64), comment='媒体主用户UID（APP用户UID）\\r\\n确保唯一性不能重复，否则用户领不到奖励.')
+    device_id = Column(String(128), comment='设备号，安卓系统设备imei')
+    content = Column(String(512), comment='备注内容')
+    sign = Column(String(64), comment='32位MD5加密签名校验\\r\\n除sign外的所有必填项都参与加密')
+    status = Column(TINYINT(1), comment='1-成功2-失败')
+    update_time = Column(DateTime, comment='更新时间')

@@ -12,9 +12,9 @@ from sqlalchemy import select, update
 from sqlalchemy.dialects.mysql import insert
 
 from models.alchemy_models import MUserInfo, t_tp_pcdd_callback, PDictionary, t_tp_xw_callback, TpTaskInfo, \
-    t_tp_ibx_callback, TpJxwCallback, TpYwCallback
+    t_tp_ibx_callback, TpJxwCallback, TpYwCallback, TpDyCallback
 from task.callback_task import fission_schema, cash_exchange
-from task.check_sign import check_xw_sign, check_ibx_sign, check_jxw_sign, check_yw_sign
+from task.check_sign import check_xw_sign, check_ibx_sign, check_jxw_sign, check_yw_sign, check_dy_sign
 from util.log import logger
 from util.static_methods import serialize
 
@@ -741,4 +741,114 @@ async def post_ywcallback(request):
         logger.info(e)
         logger.info(traceback.print_exc())
         json_result = {"code": 2, "msg": "未知错误"}
+    return web.json_response(json_result)
+
+
+@routes.get('/dycallback')
+async def get_dycallback(request):
+    connection = request['db_connection']
+    # 获取参数
+    order_id = request.query.get("order_id")
+    advert_id = int(request.query.get("advert_id"))
+    advert_name = request.query.get("advert_name")
+    created = int(request.query.get("created"))
+    media_income = float(request.query.get("media_income"))
+    member_income = float(request.query.get("member_income"))
+    media_id = request.query.get("media_id")
+    user_id = request.query.get("user_id")
+    device_id = request.query.get("device_id")
+    content = request.query.get("content")
+    sign = request.query.get("sign")
+    deal = {
+        "order_id": order_id,
+        "advert_id": advert_id,
+        "advert_name": advert_name,
+        "created": created,
+        "media_income": media_income,
+        "member_income": member_income,
+        "media_id": media_id,
+        "user_id": user_id,
+        "device_id": device_id,
+        "content": content,
+        "status": 0,
+        "update_time": datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+    }
+
+    is_ordernum = select([TpDyCallback]).where(
+        TpDyCallback.order_id == order_id
+    )
+    cursor = await connection.execute(is_ordernum)
+    record = await cursor.fetchone()
+    if record:
+        logger.info("订单已存在")
+        return web.json_response({"status_code": 200, "message": "订单已存在"})
+    try:
+        check_key = check_dy_sign(
+            keysign=sign,
+            advert_id=str(advert_id),
+            advert_name=advert_name,
+            content=content,
+            created=str(created),
+            device_id=device_id,
+            media_id=media_id,
+            media_income=str(media_income),
+            member_income=str(member_income),
+            order_id=order_id,
+            user_id=user_id
+        )
+        if not check_key:
+            return web.json_response({"status_code": 403, "message": "签名sign错误"})
+        ins = insert(TpDyCallback)
+        insert_stmt = ins.values(deal)
+        on_duplicate_key_stmt = insert_stmt.on_duplicate_key_update(
+            order_id=insert_stmt.inserted.order_id,
+            advert_id=insert_stmt.inserted.advert_id,
+            advert_name=insert_stmt.inserted.advert_name,
+            created=insert_stmt.inserted.created,
+            media_income=insert_stmt.inserted.media_income,
+            member_income=insert_stmt.inserted.member_income,
+            media_id=insert_stmt.inserted.media_id,
+            user_id=insert_stmt.inserted.user_id,
+            device_id=insert_stmt.inserted.device_id,
+            content=insert_stmt.inserted.content,
+            sign=insert_stmt.inserted.sign,
+            status=insert_stmt.inserted.status,
+            update_time=insert_stmt.inserted.update_time
+        )
+        await connection.execute(on_duplicate_key_stmt)
+
+        # 查询金币比列
+        select_coin_to_money = select([PDictionary]).where(
+            PDictionary.dic_name == "coin_to_money"
+        )
+        cur_ctm = await connection.execute(select_coin_to_money)
+        rec_ctm = await cur_ctm.fetchone()
+        task_coin = deal['member_income'] * int(rec_ctm['dic_value'])
+
+        c_result = await cash_exchange(
+            connection,
+            user_id=deal['user_id'],
+            amount=task_coin,
+            changed_type=7,
+            reason="多游游戏任务奖励",
+            remarks=deal['advert_name'] + deal['content'],
+            flow_type=1
+        )
+        fs_result = await fission_schema(
+            connection,
+            aimuser_id=deal['user_id'],
+            task_coin=task_coin
+        )
+        if c_result and fs_result:
+            update_callback_status = update(TpDyCallback).values({
+                "status": 1
+            }).where(
+                TpDyCallback.order_id == deal['order_id']
+            )
+            await connection.execute(update_callback_status)
+        json_result = {"status_code": 200, "message": "回调成功"}
+    except Exception as e:
+        logger.info(e)
+        logger.info(traceback.print_exc())
+        json_result = {"status_code": 400, "message": "未知错误发生"}
     return web.json_response(json_result)
