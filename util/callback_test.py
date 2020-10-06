@@ -131,6 +131,30 @@ async def ibx_call_back_test():
             print(r)
 
 
+async def yw_call_back_test():
+    # 参数
+    m = hashlib.md5()
+
+    orderNo = "142792891"
+    rewardDataJson = '{"advertName":"\u6251\u5ba2\u6355\u9c7c","advertIcon":"http:\/\/imgs1.zhuoyixia.com\/5d0ae875d7ffc.png","rewardRule":"\u5168\u573a\u4efb\u610f\u6e38\u620f\u7d2f\u8ba1\u8d62\u53d6\u91d1\u5e01 5\u5343","stageId":"1","stageNum":"6","rewardType":"1","isSubsidy":"0","mediaMoney":"0.60","rewardUserRate":"60.00","currencyRate":"1.00","userMoney":"0.36","userCurrency":"0.36","mediaUserId":"2cfdd8e67aaf45deb3cb242a1621f2de","receivedTime":"1576646036"}'
+    time = "1601913600"
+    params = {
+        "orderNo": orderNo,
+        "rewardDataJson": rewardDataJson,
+        "time": time,
+        "sign": (hashlib.md5(
+            (rewardDataJson + time + YW_SECRET).encode(
+                'utf-8')).hexdigest()).upper()
+    }
+    print(params['sign'])
+    async with aiohttp.ClientSession() as client:
+        # async with client.get('http://lottery.shouzhuan518.com/py/xwcallback', params=params) as resp:
+        async with client.post('http://localhost:7999/ywcallback', data=params) as resp:
+            assert resp.status == 200
+            r = await resp.json()
+            print(r)
+
+
 if __name__ == '__main__':
     loop = asyncio.get_event_loop()
-    loop.run_until_complete(ibx_call_back_test())
+    loop.run_until_complete(yw_call_back_test())

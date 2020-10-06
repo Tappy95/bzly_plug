@@ -401,7 +401,7 @@ async def get_ibxcallback(request):
 
 
 @routes.post('/ibxtaskcallback')
-async def get_ibxtaskcallback(request):
+async def post_ibxtaskcallback(request):
     connection = request['db_connection']
     r_json = await request.json()
     print(r_json)
@@ -634,8 +634,8 @@ async def get_jxwcallback(request):
     return web.Response(text=json_result)
 
 
-@routes.get('/ywcallback')
-async def get_ywcallback(request):
+@routes.post('/ywcallback')
+async def post_ywcallback(request):
     connection = request['db_connection']
     r_post = await request.post()
     # 获取参数
@@ -649,18 +649,18 @@ async def get_ywcallback(request):
         "time": int(time),
         "advertName": rewardDataJson['advertName'],
         "rewardRule": rewardDataJson['rewardRule'],
-        "stageId": rewardDataJson['stageId'],
+        "stageId": int(rewardDataJson['stageId']),
         "stageNum": rewardDataJson['stageNum'],
         "advertIcon": rewardDataJson['advertIcon'],
         "rewardType": rewardDataJson['rewardType'],
-        "isSubsidy": rewardDataJson['isSubsidy'],
-        "mediaMoney": rewardDataJson['mediaMoney'],
-        "rewardUserRate": rewardDataJson['rewardUserRate'],
-        "currencyRate": rewardDataJson['currencyRate'],
-        "userMoney": rewardDataJson['userMoney'],
-        "userCurrency": rewardDataJson['userCurrency'],
+        "isSubsidy": int(rewardDataJson['isSubsidy']),
+        "mediaMoney": float(rewardDataJson['mediaMoney']),
+        "rewardUserRate": float(rewardDataJson['rewardUserRate']),
+        "currencyRate": float(rewardDataJson['currencyRate']),
+        "userMoney": float(rewardDataJson['userMoney']),
+        "userCurrency": float(rewardDataJson['userCurrency']),
         "mediaUserId": rewardDataJson['mediaUserId'],
-        "receivedTime": rewardDataJson['receivedTime'],
+        "receivedTime": int(rewardDataJson['receivedTime']),
         "status": 0,
         "update_time": datetime.now().strftime('%Y-%m-%d %H:%M:%S')
     }
