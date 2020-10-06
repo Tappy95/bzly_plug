@@ -31,3 +31,14 @@ def check_ibx_sign(keysign, app_key, device, device_info, target_id, notify_url)
         return True
     else:
         return False
+
+
+def check_jxw_sign(keysign, prize_info, mid, time, resource_id):
+    logger.info(prize_info)
+    check_key = (hashlib.md5(
+        (prize_info + mid + time + resource_id + JXW_TOKEN).encode('utf-8')).hexdigest()).lower()
+    logger.info("JXW:server keycode:{},request keycode:{}".format(check_key, keysign))
+    if keysign == check_key:
+        return True
+    else:
+        return False

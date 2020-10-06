@@ -3,9 +3,9 @@ import os
 # ENV_TYPE = os.environ.get('ENV_TYPE', '')
 # print(ENV_TYPE)
 # 线上
-PRODUCTION_ENV = True
+# PRODUCTION_ENV = True
 # 本地
-# PRODUCTION_ENV = False
+PRODUCTION_ENV = False
 
 DB_USER_NAME = "online_db_accout" if PRODUCTION_ENV else "root"
 DB_USER_PW = "JdNH9QN52Nd7Pox58J7WmaD5nLiQ" if PRODUCTION_ENV else "!Syy950507"
@@ -80,3 +80,5 @@ XW_KEY = "ba9g60295zs208pk"
 PCDD_KEY = "PCDDXW5_QLQW_11474"
 IBX_SECRET = "06bff8a6f9963466"
 IBX_NOTIFY_URL = "http://lottery.shouzhuan518.com/py/ibxcallback"
+JXW_TOKEN = "0d17f372103a8433947afc2a289239d5"
+JXW_MID = "1245"

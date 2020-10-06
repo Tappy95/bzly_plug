@@ -1955,3 +1955,28 @@ t_tp_ibx_callback = Table(
     Column('status', Integer, comment='任务状态1-成功0-失败'),
     Column('update_time', DateTime, comment='更新时间')
 )
+
+
+class TpJxwCallback(Base):
+    __tablename__ = 'tp_jxw_callback'
+
+    prize_id = Column(Integer, primary_key=True, comment='奖励流水标识，唯一')
+    name = Column(String(150), comment='广告名称')
+    title = Column(String(300), comment='奖励名称')
+    type = Column(Integer, comment='任务类别，1 试玩，2 竞技，3 充值，4 榜单，7 悬赏 8 活动')
+    task_prize = Column(Float(10), comment='用户领取金额（单位元）')
+    deal_prize = Column(Float(10), comment='渠道利润（单位元）')
+    task_prize_coin = Column(Float(10), comment='领取奖励（渠道方货币单位）')
+    ad_id = Column(Integer, comment='广告 id')
+    prize_time = Column(Integer, comment='领奖时间（unix 时间戳）')
+    task_id = Column(Integer, comment='奖励任务任务 id')
+    game_id = Column(Integer, comment='游戏 id')
+    mid = Column(Integer, comment='渠道标识，聚享玩提供')
+    resource_id = Column(String(64), comment='渠道用户标识')
+    time = Column(Integer, comment='10 位时间戳')
+    sign = Column(String(255), comment='验签，md5(prize_info+mid+time+resource_id+token)     (prize_info 里数据为 unicode 编码格式)')
+    device_code = Column(String(255), comment='玩家设备码（安卓 imei,ios idfa）')
+    field = Column(Integer, comment='广告类型（1 棋牌 2 金融 3 微任务 4H5 5 手游 6 棋牌 2 7 手游 2；奖励为活动时，此字段为固定值 0）')
+    icon = Column(String(255), comment='游戏 icon（需用 url 解码）')
+    status = Column('status', Integer, comment='任务状态1-成功0-失败')
+    update_time = Column('update_time', DateTime, comment='更新时间')
