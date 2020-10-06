@@ -1,3 +1,4 @@
+import copy
 import hashlib
 from config import *
 from util.log import logger
@@ -35,6 +36,13 @@ def check_ibx_sign(keysign, app_key, device, device_info, target_id, notify_url)
 
 def check_jxw_sign(keysign, prize_info, mid, time, resource_id):
     logger.info(prize_info)
+    # 转码prize_info
+    # prize_info_copy = copy.deepcopy(prize_info)
+    # for idx, item in enumerate(prize_info):
+    #     for key in item:
+    #         if
+    #         prize_info_copy[idx][key] = item[key].encode("raw_unicode_escape", "utf-8").decode()
+    # logger.info(prize_info_copy)
     check_key = (hashlib.md5(
         (prize_info + mid + time + resource_id + JXW_TOKEN).encode('utf-8')).hexdigest()).lower()
     logger.info("JXW:server keycode:{},request keycode:{}".format(check_key, keysign))

@@ -1,7 +1,10 @@
+import copy
 import json
 import time
 import traceback
 from datetime import datetime
+from urllib.parse import quote
+
 from config import *
 
 from aiohttp import web
@@ -534,7 +537,9 @@ async def get_jxwcallback(request):
             "time": int(get_time),
             "device_code": device_code,
             "field": int(field),
-            "icon": icon
+            "icon": icon,
+            "status": 0,
+            "update_time": datetime.now().strftime('%Y-%m-%d %H:%M:%S')
         }
         prize_infos.append(deal)
 
@@ -542,14 +547,23 @@ async def get_jxwcallback(request):
         TpJxwCallback.prize_id.in_([prize_id['prize_id'] for prize_id in prize_infos])
     )
     cursor = await connection.execute(is_ordernum)
-    record = await cursor.fetchone()
-    logger.info(record)
-    if record:
+    record = await cursor.fetchall()
+    if len(record) == len(prize_info):
+        logger.info("订单已存在")
         return web.Response(text="success")
+    else:
+        exist_ids = [ex_id['prize_id'] for ex_id in record]
+        copy_prize = copy.deepcopy(prize_infos)
+        idx_list = []
+        for item in copy_prize:
+            if item['prize_id'] in exist_ids:
+                prize_infos.remove(item)
+    logger.info("-------------------------------------------------{}".format(prize_infos))
+
     try:
         check_key = check_jxw_sign(
             keysign=sign,
-            prize_info=request.query.get('prize_info'),
+            prize_info=request.query.get("prize_info"),
             mid=str(mid),
             time=str(get_time),
             resource_id=resource_id
@@ -577,7 +591,9 @@ async def get_jxwcallback(request):
                 sign=insert_stmt.inserted.sign,
                 device_code=insert_stmt.inserted.device_code,
                 field=insert_stmt.inserted.field,
-                icon=insert_stmt.inserted.icon
+                icon=insert_stmt.inserted.icon,
+                status=insert_stmt.inserted.status,
+                update_time=insert_stmt.inserted.update_time
             )
             await connection.execute(on_duplicate_key_stmt)
 
@@ -595,7 +611,7 @@ async def get_jxwcallback(request):
                 amount=task_coin,
                 changed_type=7,
                 reason="聚享玩游戏任务奖励",
-                remarks=deal['name']+deal['title'],
+                remarks=deal['name'] + deal['title'],
                 flow_type=1
             )
             fs_result = await fission_schema(
@@ -607,11 +623,12 @@ async def get_jxwcallback(request):
                 update_callback_status = update(TpJxwCallback).values({
                     "status": 1
                 }).where(
-                    TpJxwCallback.prize_id == deal['ordernum']
+                    TpJxwCallback.prize_id == deal['prize_id']
                 )
                 await connection.execute(update_callback_status)
         json_result = "success"
     except Exception as e:
         logger.info(e)
+        logger.info(traceback.print_exc())
         json_result = "数据接收失败"
     return web.Response(text=json_result)
