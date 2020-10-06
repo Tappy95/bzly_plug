@@ -1895,14 +1895,13 @@ t_tp_yole_callback = Table(
 class TpYuwanCallback(Base):
     __tablename__ = 'tp_yuwan_callback'
 
-    id = Column(INTEGER(11), primary_key=True)
-    orderNo = Column(String(255), nullable=False, comment='新量象平台唯一订单号')
-    rewardDataJson = Column(String(1000), comment='领取奖励信息（json_encode）')
+    orderNo = Column(String(255), primary_key=True, comment='新量象平台唯一订单号')
+    rewardDataJson = Column(Text, comment='领取奖励信息（json_encode）')
     sign = Column(String(255), comment='签名')
     time = Column(String(255), comment='发送时 时间戳 (单位秒)')
     createTime = Column(DateTime)
     ordertype = Column(String(255), comment='订单类型  cpl / apa')
-    status = Column(INTEGER(11), comment='订单状态  1-失败 2-成功')
+    status = Column(INTEGER(11), comment='订单状态  0-失败 1-成功')
     rewardRule = Column(String(500))
     stageId = Column(INTEGER(11))
     stageNum = Column(String(255))
@@ -1974,9 +1973,34 @@ class TpJxwCallback(Base):
     mid = Column(Integer, comment='渠道标识，聚享玩提供')
     resource_id = Column(String(64), comment='渠道用户标识')
     time = Column(Integer, comment='10 位时间戳')
-    sign = Column(String(255), comment='验签，md5(prize_info+mid+time+resource_id+token)     (prize_info 里数据为 unicode 编码格式)')
+    sign = Column(String(255),
+                  comment='验签，md5(prize_info+mid+time+resource_id+token)     (prize_info 里数据为 unicode 编码格式)')
     device_code = Column(String(255), comment='玩家设备码（安卓 imei,ios idfa）')
     field = Column(Integer, comment='广告类型（1 棋牌 2 金融 3 微任务 4H5 5 手游 6 棋牌 2 7 手游 2；奖励为活动时，此字段为固定值 0）')
     icon = Column(String(255), comment='游戏 icon（需用 url 解码）')
+    status = Column('status', Integer, comment='任务状态1-成功0-失败')
+    update_time = Column('update_time', DateTime, comment='更新时间')
+
+
+class TpYwCallback(Base):
+    __tablename__ = 'tp_yw_callback'
+
+    orderNo = Column(String(64), primary_key=True, info='新量象平台唯一订单号')
+    sign = Column(String(255), info='签名')
+    time = Column(Integer, info='发送时 时间戳 (单位秒)')
+    advertName = Column(String(32), info='广告名称')
+    rewardRule = Column(String(128), info='用户领取奖励规则标题')
+    stageId = Column(Integer, info='广告期数id')
+    stageNum = Column(String(255), info='广告期数信息')
+    advertIcon = Column(String(255), info='广告icon')
+    rewardType = Column(String(16), info='1:试玩 2:充值 3.冲刺奖励 4:注册奖励 5:奖励卡奖励(全额给用户)')
+    isSubsidy = Column(Integer, info='0 否 1 是 新量象平台补贴')
+    mediaMoney = Column(Float(11), info='媒体方可获取的金额，单位元(这个金额包含用户奖励)。媒体实际收益=mediaMoney-userMoney')
+    rewardUserRate = Column(Float(5), info='领取时媒体设置的用户奖励比')
+    currencyRate = Column(Float(5), info='媒体设置的媒体币兑换比率')
+    userMoney = Column(Float(11), info='用户领取的金额, 单位元 (userMoney 用这个值给用户发奖。不要用userCurrency)')
+    userCurrency = Column(Float(11), info='用户领取的媒体币，(userCurrency = userMoney * currencyRate。在媒体后台兑换比例不做变更的情况下,可以这样计算)')
+    mediaUserId = Column(String(128), info='媒体方登录用户ID')
+    receivedTime = Column(Integer, info='奖励收取时间 (时间戳，单位秒)')
     status = Column('status', Integer, comment='任务状态1-成功0-失败')
     update_time = Column('update_time', DateTime, comment='更新时间')

@@ -77,8 +77,13 @@ REDIS_URL = f'redis://{REDIS_HOST}:{REDIS_PORT}/{REDIS_DB_NUMBER}'
 AIOHTTP_PORT = 8090 if PRODUCTION_ENV else 7999
 
 XW_KEY = "ba9g60295zs208pk"
+
 PCDD_KEY = "PCDDXW5_QLQW_11474"
+
 IBX_SECRET = "06bff8a6f9963466"
 IBX_NOTIFY_URL = "http://lottery.shouzhuan518.com/py/ibxcallback"
+
 JXW_TOKEN = "0d17f372103a8433947afc2a289239d5"
 JXW_MID = "1245"
+
+YW_SECRET = "yzkp444d9syun0cmdjodqv8av9ibqxaz"

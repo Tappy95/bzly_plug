@@ -33,4 +33,6 @@ MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAjKBbnedcfpZE5gcHZZTa8E0x3OmjZndXzh9W
 
 
 
-flask-sqlacodegen "mysql://root:!Syy950507@cdb-nfyowpkz.gz.tencentcdb.com:10166/bzly" --tables tp_jxw_callback --outfile "tp_jxw_callback_models.py"  --flask
+flask-sqlacodegen "mysql://root:!Syy950507@cdb-nfyowpkz.gz.tencentcdb.com:10166/bzly" --tables tp_yw_callback --outfile "tp_yw_callback_models.py"  --flask
+
+sqlacodegen mysql://root:!Syy950507@cdb-nfyowpkz.gz.tencentcdb.com:10166/bzly -tables tp_yw_callback -outfile tp_yw_callback.py

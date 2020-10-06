@@ -12,9 +12,9 @@ from sqlalchemy import select, update
 from sqlalchemy.dialects.mysql import insert
 
 from models.alchemy_models import MUserInfo, t_tp_pcdd_callback, PDictionary, t_tp_xw_callback, TpTaskInfo, \
-    t_tp_ibx_callback, TpJxwCallback
+    t_tp_ibx_callback, TpJxwCallback, TpYwCallback
 from task.callback_task import fission_schema, cash_exchange
-from task.check_sign import check_xw_sign, check_ibx_sign, check_jxw_sign
+from task.check_sign import check_xw_sign, check_ibx_sign, check_jxw_sign, check_yw_sign
 from util.log import logger
 from util.static_methods import serialize
 
@@ -632,3 +632,113 @@ async def get_jxwcallback(request):
         logger.info(traceback.print_exc())
         json_result = "数据接收失败"
     return web.Response(text=json_result)
+
+
+@routes.get('/ywcallback')
+async def get_ywcallback(request):
+    connection = request['db_connection']
+    r_post = await request.post()
+    # 获取参数
+    orderNo = r_post.get("orderNo")
+    sign = r_post.get("sign")
+    time = r_post.get("time")
+    rewardDataJson = json.loads(r_post.get("rewardDataJson"))
+    deal = {
+        "orderNo": orderNo,
+        "sign": sign,
+        "time": int(time),
+        "advertName": rewardDataJson['advertName'],
+        "rewardRule": rewardDataJson['rewardRule'],
+        "stageId": rewardDataJson['stageId'],
+        "stageNum": rewardDataJson['stageNum'],
+        "advertIcon": rewardDataJson['advertIcon'],
+        "rewardType": rewardDataJson['rewardType'],
+        "isSubsidy": rewardDataJson['isSubsidy'],
+        "mediaMoney": rewardDataJson['mediaMoney'],
+        "rewardUserRate": rewardDataJson['rewardUserRate'],
+        "currencyRate": rewardDataJson['currencyRate'],
+        "userMoney": rewardDataJson['userMoney'],
+        "userCurrency": rewardDataJson['userCurrency'],
+        "mediaUserId": rewardDataJson['mediaUserId'],
+        "receivedTime": rewardDataJson['receivedTime'],
+        "status": 0,
+        "update_time": datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+    }
+
+    is_ordernum = select([TpYwCallback]).where(
+        TpYwCallback.orderNo == deal['orderNo']
+    )
+    cursor = await connection.execute(is_ordernum)
+    record = await cursor.fetchone()
+    if record:
+        logger.info("订单已存在")
+        return web.json_response({"code": 1, "msg": "已接收过了"})
+
+    try:
+        check_key = check_yw_sign(
+            keysign=sign,
+            rewardDataJson=r_post.get("rewardDataJson"),
+            time=str(deal['time'])
+        )
+        if not check_key:
+            return web.json_response({"code": 2, "msg": "未知错误"})
+        ins = insert(TpYwCallback)
+        insert_stmt = ins.values(deal)
+        on_duplicate_key_stmt = insert_stmt.on_duplicate_key_update(
+            orderNo=insert_stmt.inserted.orderNo,
+            sign=insert_stmt.inserted.sign,
+            time=insert_stmt.inserted.time,
+            advertName=insert_stmt.inserted.advertName,
+            rewardRule=insert_stmt.inserted.rewardRule,
+            stageId=insert_stmt.inserted.stageId,
+            stageNum=insert_stmt.inserted.stageNum,
+            advertIcon=insert_stmt.inserted.advertIcon,
+            rewardType=insert_stmt.inserted.rewardType,
+            isSubsidy=insert_stmt.inserted.isSubsidy,
+            mediaMoney=insert_stmt.inserted.mediaMoney,
+            rewardUserRate=insert_stmt.inserted.rewardUserRate,
+            currencyRate=insert_stmt.inserted.currencyRate,
+            userMoney=insert_stmt.inserted.userMoney,
+            userCurrency=insert_stmt.inserted.userCurrency,
+            mediaUserId=insert_stmt.inserted.mediaUserId,
+            receivedTime=insert_stmt.inserted.receivedTime,
+            status=insert_stmt.inserted.status,
+            update_time=insert_stmt.inserted.update_time
+        )
+        await connection.execute(on_duplicate_key_stmt)
+
+        # 查询金币比列
+        select_coin_to_money = select([PDictionary]).where(
+            PDictionary.dic_name == "coin_to_money"
+        )
+        cur_ctm = await connection.execute(select_coin_to_money)
+        rec_ctm = await cur_ctm.fetchone()
+        task_coin = deal['userMoney'] * int(rec_ctm['dic_value'])
+
+        c_result = await cash_exchange(
+            connection,
+            user_id=deal['mediaUserId'],
+            amount=task_coin,
+            changed_type=7,
+            reason="鱼玩游戏任务奖励",
+            remarks=deal['advertName'] + deal['rewardRule'],
+            flow_type=1
+        )
+        fs_result = await fission_schema(
+            connection,
+            aimuser_id=deal['mediaUserId'],
+            task_coin=task_coin
+        )
+        if c_result and fs_result:
+            update_callback_status = update(TpYwCallback).values({
+                "status": 1
+            }).where(
+                TpYwCallback.orderNo == deal['orderNo']
+            )
+            await connection.execute(update_callback_status)
+        json_result = {"code": 0, "msg": ""}
+    except Exception as e:
+        logger.info(e)
+        logger.info(traceback.print_exc())
+        json_result = {"code": 2, "msg": "未知错误"}
+    return web.json_response(json_result)

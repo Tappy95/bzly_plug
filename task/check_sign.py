@@ -50,3 +50,13 @@ def check_jxw_sign(keysign, prize_info, mid, time, resource_id):
         return True
     else:
         return False
+
+
+def check_yw_sign(keysign, rewardDataJson, time):
+    check_key = (hashlib.md5(
+        (rewardDataJson + time + YW_SECRET).encode('utf-8')).hexdigest()).lower()
+    logger.info("YW:server keycode:{},request keycode:{}".format(check_key, keysign))
+    if keysign == check_key:
+        return True
+    else:
+        return False
