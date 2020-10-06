@@ -785,16 +785,16 @@ async def get_dycallback(request):
     try:
         check_key = check_dy_sign(
             keysign=sign,
-            advert_id=str(advert_id),
-            advert_name=advert_name,
-            content=content,
-            created=str(created),
-            device_id=device_id,
-            media_id=media_id,
-            media_income=str(media_income),
-            member_income=str(member_income),
-            order_id=order_id,
-            user_id=user_id
+            advert_id=request.query.get("advert_id"),
+            advert_name=request.query.get("advert_name"),
+            content=request.query.get("content"),
+            created=request.query.get("created"),
+            device_id=request.query.get("device_id"),
+            media_id=request.query.get("media_id"),
+            media_income=request.query.get("media_income"),
+            member_income=request.query.get("member_income"),
+            order_id=request.query.get("order_id"),
+            user_id=request.query.get("user_id")
         )
         if not check_key:
             return web.json_response({"status_code": 403, "message": "签名sign错误"})
