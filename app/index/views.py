@@ -226,11 +226,13 @@ async def get_xwcallback(request):
             "status": 2,
             "createTime": str(datetime.now().replace(microsecond=0))
         }
+        logger.info(callback_params)
         check_key = check_xw_sign(
             keysign=request.query.get('keycode'),
             adid=request.query.get('adid'),
             appid=request.query.get('appid'),
             ordernum=request.query.get('ordernum'),
+            dlevel=request.query.get('dlevel'),
             deviceid=request.query.get('deviceid'),
             appsign=request.query.get('appsign'),
             price=request.query.get('price'),
@@ -736,6 +738,7 @@ async def post_ywcallback(request):
             aimuser_id=deal['mediaUserId'],
             task_coin=task_coin
         )
+
         if c_result and fs_result:
             update_callback_status = update(TpYwCallback).values({
                 "status": 1
