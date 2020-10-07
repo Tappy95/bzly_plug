@@ -13,7 +13,7 @@ from sqlalchemy.dialects.mysql import insert
 
 from models.alchemy_models import MUserInfo, t_tp_pcdd_callback, PDictionary, t_tp_xw_callback, TpTaskInfo, \
     t_tp_ibx_callback, TpJxwCallback, TpYwCallback, TpDyCallback, TpZbCallback
-from task.callback_task import fission_schema, cash_exchange
+from task.callback_task import fission_schema, cash_exchange, select_user_id
 from task.check_sign import check_xw_sign, check_ibx_sign, check_jxw_sign, check_yw_sign, check_dy_sign, check_zb_sign
 from util.log import logger
 from util.static_methods import serialize
@@ -135,6 +135,7 @@ async def get_pcddcallback(request):
             "status": 1,
             "createTime": str(datetime.now().replace(microsecond=0))
         }
+        pcdd_callback_params['userid'] = await select_user_id(connection, pcdd_callback_params['userid'])
         ins = insert(t_tp_pcdd_callback)
         insert_stmt = ins.values(pcdd_callback_params)
         on_duplicate_key_stmt = insert_stmt.on_duplicate_key_update(
@@ -237,6 +238,7 @@ async def get_xwcallback(request):
         )
         if not check_key:
             return web.json_response({"success": 0, "message": "验签失败"})
+        callback_params['appsign'] = await select_user_id(connection, callback_params['appsign'])
         ins = insert(t_tp_xw_callback)
         insert_stmt = ins.values(callback_params)
         on_duplicate_key_stmt = insert_stmt.on_duplicate_key_update(
@@ -339,6 +341,7 @@ async def get_ibxcallback(request):
         )
         if not check_key:
             return web.json_response({"code": 0, "message": "验签失败"})
+        callback_params['target_id'] = await select_user_id(connection, callback_params['target_id'])
         ins = insert(t_tp_ibx_callback)
         insert_stmt = ins.values(callback_params)
         on_duplicate_key_stmt = insert_stmt.on_duplicate_key_update(
@@ -442,6 +445,7 @@ async def post_ibxtaskcallback(request):
         )
         if not check_key:
             return web.json_response({"code": 0, "message": "验签失败"})
+        callback_params['target_id'] = await select_user_id(connection, callback_params['target_id'])
         ins = insert(t_tp_ibx_callback)
         insert_stmt = ins.values(callback_params)
         on_duplicate_key_stmt = insert_stmt.on_duplicate_key_update(
@@ -554,7 +558,6 @@ async def get_jxwcallback(request):
     else:
         exist_ids = [ex_id['prize_id'] for ex_id in record]
         copy_prize = copy.deepcopy(prize_infos)
-        idx_list = []
         for item in copy_prize:
             if item['prize_id'] in exist_ids:
                 prize_infos.remove(item)
@@ -570,7 +573,9 @@ async def get_jxwcallback(request):
         )
         if not check_key:
             return web.Response(text="验签失败")
+
         for deal in prize_infos:
+            deal['resource_id'] = await select_user_id(connection, deal['resource_id'])
             ins = insert(TpJxwCallback)
             insert_stmt = ins.values(deal)
             on_duplicate_key_stmt = insert_stmt.on_duplicate_key_update(
@@ -682,6 +687,7 @@ async def post_ywcallback(request):
         )
         if not check_key:
             return web.json_response({"code": 2, "msg": "签名错误"})
+        deal['mediaUserId'] = await select_user_id(connection, deal['mediaUserId'])
         ins = insert(TpYwCallback)
         insert_stmt = ins.values(deal)
         on_duplicate_key_stmt = insert_stmt.on_duplicate_key_update(
@@ -798,6 +804,7 @@ async def get_dycallback(request):
         )
         if not check_key:
             return web.json_response({"status_code": 403, "message": "签名sign错误"})
+        deal['user_id'] = await select_user_id(connection, deal['user_id'])
         ins = insert(TpDyCallback)
         insert_stmt = ins.values(deal)
         on_duplicate_key_stmt = insert_stmt.on_duplicate_key_update(
@@ -908,6 +915,7 @@ async def post_zbcallback(request):
         )
         if not check_key:
             return web.json_response({"code": 403, "success": "false"})
+        deal['uid'] = await select_user_id(connection, deal['uid'])
         ins = insert(TpZbCallback)
         insert_stmt = ins.values(deal)
         on_duplicate_key_stmt = insert_stmt.on_duplicate_key_update(

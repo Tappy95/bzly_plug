@@ -11,7 +11,7 @@ from util.log import logger
 async def cash_exchange(connection, user_id, amount, changed_type, reason, remarks, flow_type=1):
     """
     :param connection:
-    :param user_id:
+    :param user_id:用户token
     :param amount: 变更金额
     :param flow_type: 变更类型1收入-2支出
     :param changed_type: 变更原因1答题2来访礼3提现4推荐用户获得5徒弟贡献6vip 7.游戏试玩奖励 8.徒弟到达4L奖励
@@ -25,7 +25,7 @@ async def cash_exchange(connection, user_id, amount, changed_type, reason, remar
 
     # 查询当前用户金币
     select_user_current_coin = select([MUserInfo]).where(
-        MUserInfo.user_id == user_id
+        MUserInfo.token == user_id
     )
     cursor_cur_coin = await connection.execute(select_user_current_coin)
     record_cur_coin = await cursor_cur_coin.fetchone()
@@ -110,3 +110,24 @@ async def fission_schema(connection, aimuser_id, task_coin, is_one=True):
             )
 
     return True
+
+
+# 查询用户ID
+async def select_user_id(connection, t_or_id):
+    select_b_token = select([MUserInfo]).where(
+        MUserInfo.token == t_or_id
+    )
+    cur = await connection.execute(select_b_token)
+    rec = await cur.fetchone()
+    select_b_id = select([MUserInfo]).where(
+        MUserInfo.user_id == t_or_id
+    )
+    if rec:
+        return rec['user_id']
+    else:
+        cur = await connection.execute(select_b_id)
+        rec = await cur.fetchone()
+        if rec:
+            return rec['user_id']
+        else:
+            return None
