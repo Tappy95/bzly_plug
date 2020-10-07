@@ -8,7 +8,7 @@ from urllib.parse import quote
 from config import *
 
 from aiohttp import web
-from sqlalchemy import select, update, and_
+from sqlalchemy import select, update, and_, text
 from sqlalchemy.dialects.mysql import insert
 
 from models.alchemy_models import MUserInfo, t_tp_pcdd_callback, PDictionary, t_tp_xw_callback, TpTaskInfo, \
@@ -975,3 +975,147 @@ async def post_zbcallback(request):
         logger.info(traceback.print_exc())
         json_result = {"code": 400, "success": "false"}
     return web.json_response(json_result)
+
+
+@routes.get('/recallback')
+async def restart_callback(request):
+    platform = request.query.get("platform")
+    connection = request['db_connection']
+    p_dict = {
+        "duoyou": {
+            "table": TpDyCallback,
+            "order_column": "order_id",
+            "user_column": "user_id",
+            "user_money_column": "member_income",
+            "defeat_status": 0,
+            "success_status": 1,
+            "title_column": "advert_name"
+        },
+        "xiangwan": {
+            "table": t_tp_pcdd_callback,
+            "order_column": "ordernum",
+            "user_column": "userid",
+            "user_money_column": "money",
+            "defeat_status": 1,
+            "success_status": 2,
+            "title_column": "adname"
+        },
+        "xianwan": {
+            "table": t_tp_xw_callback,
+            "order_column": "ordernum",
+            "user_column": "appsign",
+            "user_money_column": "money",
+            "defeat_status": 2,
+            "success_status": 1,
+            "title_column": "adname"
+        },
+        "aibianxian": {
+            "table": t_tp_ibx_callback,
+            "order_column": "order_id",
+            "user_column": "target_id",
+            "user_money_column": "user_reward",
+            "defeat_status": 0,
+            "success_status": 1,
+            "title_column": "game_name"
+        },
+        "zhiban": {
+            "table": TpZbCallback,
+            "order_column": ["uid", "task_id"],
+            "user_column": "uid",
+            "user_money_column": "price",
+            "defeat_status": 0,
+            "success_status": 1,
+            "title_column": "title"
+        },
+        "yuwan": {
+            "table": TpYwCallback,
+            "order_column": "orderNo",
+            "user_column": "mediaUserId",
+            "user_money_column": "userMoney",
+            "defeat_status": 0,
+            "success_status": 1,
+            "title_column": "advertName"
+        },
+        "juxiangwan": {
+            "table": TpJxwCallback,
+            "order_column": "prize_id",
+            "user_column": "resource_id",
+            "user_money_column": "task_prize",
+            "defeat_status": 0,
+            "success_status": 1,
+            "title_column": "name"
+        }
+    }
+    # 判断表model类型
+    is_c_model = type(t_tp_xw_callback) == type(p_dict[platform]['table'])
+    # 初始化对象
+    s_table = p_dict[platform]["table"]
+    order_column = p_dict[platform]["order_column"]
+    title_column = p_dict[platform]["title_column"]
+    user_column = p_dict[platform]["user_column"]
+    user_money_column = p_dict[platform]["user_money_column"]
+    defeat_status = p_dict[platform]["defeat_status"]
+    success_status = p_dict[platform]["success_status"]
+    # 查询平台内所有失败任务
+
+    select_defeat_tasks = select([p_dict[platform]["table"]]).where(
+        and_(
+            text(
+                "status = {}".format(defeat_status)
+            )
+        )
+    )
+    cursor = await connection.execute(select_defeat_tasks)
+    record = await cursor.fetchall()
+    tasks = serialize(cursor, record)
+    # 遍历失败任务信息
+    i = 0
+    for task in tasks:
+        # 查询用户ID,并覆盖
+        task[user_column] = await select_user_id(connection, task[user_column])
+        logger.info("user_id:{}".format(task[user_column]))
+        # 重新发放奖励及列表
+        # 查询金币比列
+        select_coin_to_money = select([PDictionary]).where(
+            PDictionary.dic_name == "coin_to_money"
+        )
+        cur_ctm = await connection.execute(select_coin_to_money)
+        rec_ctm = await cur_ctm.fetchone()
+        task_coin = task[user_money_column] * int(rec_ctm['dic_value'])
+
+        c_result = await cash_exchange(
+            connection,
+            user_id=task[user_column],
+            amount=task_coin,
+            changed_type=7,
+            reason="{}游戏任务奖励".format(platform),
+            remarks=task[title_column],
+            flow_type=1
+        )
+        fs_result = await fission_schema(
+            connection,
+            aimuser_id=task[user_column],
+            task_coin=task_coin
+        )
+        logger.info("流水记录及变更用户金币:{},列表任务:{}".format(c_result, fs_result))
+        if c_result and fs_result:
+            if platform != "zhiban":
+                str1 = order_column + "=" + str(task[order_column])
+                logger.info(str1)
+                sql_text = [text(order_column + "=" + str(task[order_column]))]
+            else:
+                sql_text = [text(order_column[0] + "=" + str(task[order_column[0]])),
+                            text(order_column[1] + "=" + str(task[order_column[1]]))]
+            update_callback_status = update(s_table).values({
+                "status": success_status
+            }).where(and_(*sql_text))
+            await connection.execute(update_callback_status)
+            i += 1
+
+        if platform != "zhiban":
+            logger.info("处理{}任务:{}".format(platform, task[order_column]))
+        else:
+            logger.info("处理{}任务:{}".format(platform, task[order_column[0], task[order_column][1]]))
+    return web.json_response({
+        "成功处理任务": i
+    })

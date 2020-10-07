@@ -25,7 +25,7 @@ async def cash_exchange(connection, user_id, amount, changed_type, reason, remar
 
     # 查询当前用户金币
     select_user_current_coin = select([MUserInfo]).where(
-        MUserInfo.token == user_id
+        MUserInfo.user_id == user_id
     )
     cursor_cur_coin = await connection.execute(select_user_current_coin)
     record_cur_coin = await cursor_cur_coin.fetchone()
