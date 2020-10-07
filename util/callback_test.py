@@ -98,7 +98,7 @@ async def ibx_call_back_test():
     app_key = "142792891"
     device = "安卓"
     device_info = "863270643441130"
-    target_id = "2cfdd8e67aaf45deb3cb242a1621f2de"
+    target_id = "112e9bbb482064988f79c07207693fc8"
     game_id = "11474"
     app_reward = "0.85"
     user_reward = "0.55"
@@ -125,7 +125,7 @@ async def ibx_call_back_test():
     print(params['sign'])
     async with aiohttp.ClientSession() as client:
         # async with client.get('http://lottery.shouzhuan518.com/py/xwcallback', params=params) as resp:
-        async with client.post('http://localhost:7999/ibxcallback', data=params) as resp:
+        async with client.post('http://localhost:8090/ibxcallback', data=params) as resp:
             assert resp.status == 200
             r = await resp.json()
             print(r)
@@ -204,4 +204,4 @@ async def zb_call_back_test():
 
 if __name__ == '__main__':
     loop = asyncio.get_event_loop()
-    loop.run_until_complete(zb_call_back_test())
+    loop.run_until_complete(ibx_call_back_test())
