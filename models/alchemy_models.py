@@ -452,6 +452,17 @@ class LUserCashLog(Base):
     days = Column(INTEGER(5), comment='距离注册时间的天数')
 
 
+class LUserCashLogPY(Base):
+    __tablename__ = 'l_user_cash_log_py'
+
+    id = Column(INTEGER(10), primary_key=True)
+    user_id = Column(String(64), comment='用户id')
+    out_trade_no = Column(String(64), comment='提现订单号')
+    cash_coin = Column(BIGINT(20), comment='提现金额 单位：金币')
+    cash_time = Column(BIGINT(20), comment='提现时间')
+    cash_num = Column(INTEGER(5), comment='提现次数')
+
+
 class LUserCashtoutiao(Base):
     __tablename__ = 'l_user_cashtoutiao'
 
