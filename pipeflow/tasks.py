@@ -1,3 +1,4 @@
+import json
 import asyncio
 
 __all__ = ['Task']
@@ -52,3 +53,76 @@ class Task:
             ret = self._confirm_handle()
             self._confirm_handle = None
             return ret
+
+
+class MetaTask(Task):
+    """Like Task, additionally, add meta data containing hops conf which determine following
+    dynamic ouputenpoints how to publish message.
+    """
+    __slots__ = Task.__slots__ + ['data', 'next_hop']
+
+    def __init__(self, data=None, from_name=None, to_name=None, confirm_handle=None,
+                 next_hop=True):
+        super().__init__(data, from_name, to_name, confirm_handle)
+        self.data = json.loads(self._data, encoding="utf-8")
+        self.next_hop = next_hop
+
+    @property
+    def current_hop(self):
+        return {
+            "topic": self.data["meta"]["hop"]["topic"],
+            "delay": self.data["meta"]["hop"].get("delay")
+        }
+
+    def set_data(self, data):
+        self.data["data"] = data
+
+    def get_data(self):
+        return self.data["data"]
+
+    def get_meta_data(self):
+        dct = self.data["meta"].copy()
+        del dct["hop"]
+        return dct
+
+    #def get_raw_data(self):
+    #    raise AttributeError("get_raw_data function doesn't support in MetaTask")
+
+    #def dumps(self):
+    #    if self._next_hop:
+    #        if self.data["meta"]["hops"]:
+    #            self.data["meta"]["hops"].pop(0)
+    #    return json.dumps(self.data).encode("utf-8")
+
+    def spawn(self, data, next_hop=True, hop_conf=None):
+        dct = {
+            "data": data,
+            "meta": self.data["meta"]
+        }
+        if hop_conf:
+            dct["meta"]["hop"] = hop_conf
+        return MetaTask(json.dumps(dct).encode("utf-8"), self._from, self._to,
+                        self._confirm_handle, next_hop)
+
+    @property
+    def next_tasks(self):
+        """hop format
+        {
+            "topic": "name",
+            "delay": 5000,    #optional
+            "next": [
+                {...},
+                {...}
+            ]
+        }
+        """
+        if self.next_hop:
+            dct = {
+                "data": self.data["data"],
+                "meta": self.data["meta"].copy()
+            }
+            for hop in self.data["meta"]["hop"].get("next", []):
+                dct["meta"]["hop"] = hop
+                yield MetaTask(json.dumps(dct).encode("utf-8"))
+        else:
+            yield self

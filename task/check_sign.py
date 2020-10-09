@@ -6,9 +6,9 @@ from config import *
 from util.log import logger
 
 
-def check_xw_sign(keysign, adid, appid, ordernum, deviceid, appsign, price, money):
-    check_key = hashlib.md5(
-        (str(adid) + appid + ordernum + "1" + deviceid + appsign + price + money + XW_KEY).encode('utf-8')).hexdigest()
+def check_xw_sign(keysign, adid, appid, ordernum, dlevel, deviceid, appsign, price, money):
+    check_key = (hashlib.md5((str(adid) + appid + ordernum + dlevel + deviceid + appsign + price + money + XW_KEY).encode(
+        'utf-8')).hexdigest()).upper()
     logger.info("XW:server keycode:{},request keycode:{}".format(check_key, keysign))
     if keysign == check_key:
         return True

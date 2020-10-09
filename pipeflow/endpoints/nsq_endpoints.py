@@ -4,7 +4,7 @@ import functools
 from collections import defaultdict
 from .endpoints import AbstractCoroutineInputEndpoint, AbstractCoroutineOutputEndpoint,\
     AbstractInputEndpoint, AbstractOutputEndpoint
-from ..tasks import Task
+from ..tasks import Task, MetaTask
 from ..log import logger
 
 
@@ -17,7 +17,8 @@ class NsqInputEndpoint(AbstractCoroutineInputEndpoint):
     input_end = NsqInputEndpoint('topic_x', 'channel_x', 3,  **{'lookupd_http_addresses': ['127.0.0.1:5761']})
     """
 
-    def __init__(self, topic, channel, max_in_flight=5, auto_confirm=True, **conf):
+    def __init__(self, topic, channel, max_in_flight=5, auto_confirm=True, task_cls=Task,  **conf):
+        self.task_cls = task_cls
         self._auto_confirm = auto_confirm
         conf['max_in_flight'] = max_in_flight
         self._inner_q = asyncio.Queue(0)
@@ -30,7 +31,7 @@ class NsqInputEndpoint(AbstractCoroutineInputEndpoint):
 
     async def get(self):
         message = await self._inner_q.get()
-        task = Task(message.body)
+        task = self.task_cls(message.body)
         if self._auto_confirm:
             message.finish()
         else:
@@ -85,4 +86,34 @@ class NsqOutputEndpoint(AbstractCoroutineOutputEndpoint):
                     ret_ls.append(ret)
             else:
                 logger.error("NsqOutput error: invalid params: {}".format(params))
+        return all(ret_ls)
+
+
+class NsqDynamicOutputEndpoint(NsqOutputEndpoint):
+    """NSQ dynamic output endpoint
+
+    use meta data in task to determine topics to pub, and update meta data.
+
+    output_end = NsqDynamicOutputEndpoint(**{'nsqd_tcp_addresses': '127.0.0.1:5750'})
+    """
+
+    async def put(self, tasks):
+        m_grp = defaultdict(list)
+        d_grp = defaultdict(list)
+        for _, task in tasks:
+            assert isinstance(task, MetaTask)
+            for task in task.next_tasks:
+                hop = task.current_hop
+                if hop.get("delay"):
+                    d_grp[hop["topic"], hop["delay"]].append(task)
+                else:
+                    m_grp[hop["topic"]].append(task)
+        ret_ls = []
+        for topic, tasks in m_grp.items():
+            ret = await self._mpub(topic, [task.get_raw_data() for task in tasks])
+            ret_ls.append(ret)
+        for params, tasks in d_grp.items():
+            for task in tasks:
+                ret = await self._dpub(params[0], params[1], task.get_raw_data())
+                ret_ls.append(ret)
         return all(ret_ls)
