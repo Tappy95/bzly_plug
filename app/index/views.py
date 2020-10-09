@@ -1108,22 +1108,25 @@ async def restart_callback(request):
         logger.info("流水记录及变更用户金币:{},列表任务:{}".format(c_result, fs_result))
         if c_result and fs_result:
             if platform != "zhiban":
-                str1 = order_column + "=" + str(task[order_column])
+                str1 = order_column + '="' + str(task[order_column]) + '"'
                 logger.info(str1)
-                sql_text = [text(order_column + "=" + str(task[order_column]))]
+                sql_text = [text(order_column + '="' + str(task[order_column]) + '"')]
             else:
-                sql_text = [text(order_column[0] + "=" + str(task[order_column[0]])),
-                            text(order_column[1] + "=" + str(task[order_column[1]]))]
+                sql_text = [text(order_column[0] + '="' + str(task[order_column[0]]) + '"'),
+                            text(order_column[1] + '="' + str(task[order_column[1]]) + '"')]
+                # logger.info(str(order_column[0] + '="' + str(task[order_column[0]])))
+                # logger.info(str(order_column[1] + '="' + str(task[order_column[1]])))
             update_callback_status = update(s_table).values({
                 "status": success_status
             }).where(and_(*sql_text))
+            logger.info(update_callback_status)
             await connection.execute(update_callback_status)
             i += 1
 
         if platform != "zhiban":
             logger.info("处理{}任务:{}".format(platform, task[order_column]))
         else:
-            logger.info("处理{}任务:{}".format(platform, task[order_column[0], task[order_column][1]]))
+            logger.info("处理{}任务:{},{}".format(platform, str(task[order_column[0]]), str(task[order_column[1]])))
     return web.json_response({
         "成功处理任务": i
     })
