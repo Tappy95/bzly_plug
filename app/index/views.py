@@ -370,7 +370,8 @@ async def get_ibxcallback(request):
         )
         cur_ctm = await connection.execute(select_coin_to_money)
         rec_ctm = await cur_ctm.fetchone()
-        task_coin = callback_params['user_reward'] * int(rec_ctm['dic_value'])
+        # task_coin = callback_params['user_reward'] * int(rec_ctm['dic_value'])
+        task_coin = callback_params['user_reward']
 
         c_result = await cash_exchange(
             connection,
@@ -875,8 +876,9 @@ async def post_zbcallback(request):
     task_id = r_post.get("task_id")
     code = r_post.get("code")
     msg = r_post.get("msg")
-    price = float(r_post.get("price"))
-    media_price = float(r_post.get("media_price"))
+
+    price = float(r_post.get("price")) if r_post.get("price") else 0
+    media_price = float(r_post.get("media_price")) if r_post.get("media_price") else 0
     get_time = int(r_post.get("time"))
     title = r_post.get("title")
     logo = r_post.get("logo")
