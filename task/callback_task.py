@@ -1,13 +1,17 @@
 # 麒麟分佣任务
+import asyncio
 import time
 
-from sqlalchemy import select, update, insert
+from sqlalchemy import select, update, insert, and_, text
 
-from models.alchemy_models import MUserInfo, MFissionScheme, LCoinChange
+from models.alchemy_models import MUserInfo, MFissionScheme, LCoinChange, TpDyCallback, t_tp_pcdd_callback, \
+    t_tp_xw_callback, t_tp_ibx_callback, TpZbCallback, TpYwCallback, TpJxwCallback, MChannelInfo
 from util.log import logger
 
-
 # 金币变更任务
+from util.static_methods import serialize
+
+
 async def cash_exchange(connection, user_id, amount, changed_type, reason, remarks, flow_type=1):
     """
     :param connection:
@@ -131,3 +135,237 @@ async def select_user_id(connection, t_or_id):
             return rec['user_id']
         else:
             return None
+
+
+# 查询渠道用户IDs
+async def get_channel_user_ids(connection, channel):
+    select_user_ids = select([MUserInfo]).where(
+        MUserInfo.channel_code == channel
+    )
+    cursor = await connection.execute(select_user_ids)
+    record = await cursor.fetchall()
+    user_ids = [user_info['user_id'] for user_info in record]
+    tokens = [user_info['token'] for user_info in record]
+    return [*user_ids, *tokens]
+
+
+# 查询回调信息
+async def get_callback_infos(connection, user_ids, platform, params):
+    p_dict = {
+        "duoyou": {
+            "table": TpDyCallback,
+            "ordernum": "order_id",
+            "userid": "user_id",
+            "adid": "advert_id",
+            "adname": "advert_name",
+            "deviceid": "device_id",
+            "price": "media_income",
+            "money": "member_income",
+            "createTime": "update_time",
+            "event": "content",
+            "dif_time": "created",
+            "defeat_status": 0,
+            "success_status": 1,
+        },
+        "xiangwan": {
+            "table": t_tp_pcdd_callback,
+            "ordernum": "ordernum",
+            "userid": "userid",
+            "adid": "adid",
+            "adname": "adname",
+            "deviceid": "deviceid",
+            "price": "price",
+            "money": "money",
+            "createTime": "createTime",
+            "event": "event",
+            "dif_time": "price",
+            "defeat_status": 1,
+            "success_status": 2
+        },
+        "xianwan": {
+            "table": t_tp_xw_callback,
+            "ordernum": "ordernum",
+            "userid": "appsign",
+            "adid": "adid",
+            "adname": "adname",
+            "deviceid": "deviceid",
+            "price": "price",
+            "money": "money",
+            "createTime": "createTime",
+            "event": "event",
+            "dif_time": "price",
+            "defeat_status": 2,
+            "success_status": 1
+        },
+        "aibianxian": {
+            "table": t_tp_ibx_callback,
+            "ordernum": "order_id",
+            "userid": "target_id",
+            "adid": "app_key",
+            "adname": "game_name",
+            "deviceid": "device_info",
+            "price": "app_reward",
+            "money": "user_reward",
+            "createTime": "update_time",
+            "event": "content",
+            "dif_time": "time_end",
+            "defeat_status": 0,
+            "success_status": 1
+        },
+        "zhiban": {
+            "table": TpZbCallback,
+            "ordernum": ["uid", "task_id"],
+            "userid": "uid",
+            "adid": "task_id",
+            "adname": "advert_name",
+            "deviceid": "dev_code",
+            "price": "media_price",
+            "money": "price",
+            "createTime": "update_time",
+            "event": "msg",
+            "dif_time": "time",
+            "defeat_status": 0,
+            "success_status": 1
+        },
+        "yuwan": {
+            "table": TpYwCallback,
+            "ordernum": "orderNo",
+            "userid": "mediaUserId",
+            "adid": "stageId",
+            "adname": "advertName",
+            "deviceid": "mediaUserId",
+            "price": "mediaMoney",
+            "money": "userMoney",
+            "createTime": "update_time",
+            "event": "rewardRule",
+            "dif_time": "time",
+            "defeat_status": 0,
+            "success_status": 1
+        },
+        "juxiangwan": {
+            "table": TpJxwCallback,
+            "ordernum": "prize_id",
+            "userid": "resource_id",
+            "adid": "ad_id",
+            "adname": "name",
+            "deviceid": "device_code",
+            "price": "deal_prize",
+            "money": "task_prize",
+            "createTime": "update_time",
+            "event": "title",
+            "dif_time": "prize_time",
+            "defeat_status": 0,
+            "success_status": 1
+        }
+    }
+
+    # 查对应回调表
+    # 初始化对象
+    s_table = p_dict[platform]["table"]
+    ordernum = p_dict[platform]["ordernum"]
+    userid = p_dict[platform]["userid"]
+    adid = p_dict[platform]["adid"]
+    adname = p_dict[platform]["adname"]
+    deviceid = p_dict[platform]["deviceid"]
+    price = p_dict[platform]["price"]
+    money = p_dict[platform]["money"]
+    event = p_dict[platform]["event"]
+    dif_time = p_dict[platform]["dif_time"]
+    createTime = p_dict[platform]["createTime"]
+    defeat_status = p_dict[platform]["defeat_status"]
+    success_status = p_dict[platform]["success_status"]
+
+    # 构造条件
+    conditions = []
+    if "accountId" in params:
+        # 先查询用户真实id
+        select_real_id = select([MUserInfo]).where(
+            MUserInfo.account_id == params['accountId']
+        )
+        c_id = await connection.execute(select_real_id)
+        r_id = await c_id.fetchone()
+        conditions.append(text(userid + '="' + r_id['user_id'] + '"'))
+    if "adname" in params:
+        conditions.append(text(adname + '="' + params['adname'] + '"'))
+    if "status" in params:
+        # params - status 1成功,2失败
+        status_key = success_status if params['status'] == 1 else defeat_status
+        conditions.append(text("status" + '=' + str(status_key)))
+    if "startTime" in params:
+        conditions.append(text(dif_time + '>' + int(params['startTime'])))
+    if "endTime" in params:
+        conditions.append(text(dif_time + '<' + int(params['endTime'])))
+    if "yoleid" in params:
+        if platform != "zhiban":
+            conditions.append(text(ordernum + '="' + params['yoleid'] + '"'))
+
+    # 过滤渠道用户
+    conditions.append(text(userid + " IN " + str(tuple(user_ids))))
+
+    select_allcallback = select([s_table]).where(and_(*conditions))
+    cursor = await connection.execute(select_allcallback)
+    record = await cursor.fetchall()
+    tasks = serialize(cursor, record)
+
+    # 构造返回list_info
+    list_info = []
+    for task in tasks:
+        # 先查询用户真实id
+        select_real_id = select([MUserInfo]).where(
+            MUserInfo.user_id == task[userid]
+        )
+        real_c = await connection.execute(select_real_id)
+        real_r = await real_c.fetchone()
+        if real_r:
+            select_channel_info = select([MChannelInfo]).where(
+                MChannelInfo.channel_code == real_r['channel_code']
+            )
+            real_channel_info = await connection.execute(select_channel_info)
+            real_record = await real_channel_info.fetchone()
+        result = {
+            "accountId": real_r['account_id'] if real_r else "未知用户",
+            "ordernum": task[ordernum],
+            "adid": task[adid],
+            "pid": real_record['channel_id'] if real_r and real_record else "未知",
+            "adname": task[adname],
+            "channelCode": real_r['channel_code'] if real_r else "未知渠道",
+            "createTime": task[createTime],
+            "deviceid": task[deviceid],
+            "event": task[event],
+            "dlevel": 1,
+            "price": task[price],
+            "money": task[money],
+            "status": 1 if task['status'] == success_status else 2
+
+        }
+        list_info.append(result)
+
+    # 统计信息
+    # 渠道内
+    smallSuccessCount = len([task for task in tasks if task['status'] == success_status])
+    smallPriceSum = sum([float(task[price]) for task in tasks if task['status'] == success_status])
+    smallMoneySum = sum([float(task[money]) for task in tasks if task['status'] == success_status])
+    # 总数
+    select_totalcallback = select([s_table]).where(
+        text("status" + '=' + str(success_status))
+    )
+    cursor_totalcallback = await connection.execute(select_totalcallback)
+    record_totalcallback = await cursor_totalcallback.fetchall()
+    SuccessCount = len([task for task in record_totalcallback])
+    PriceSum = sum([float(task[price]) for task in record_totalcallback])
+    MoneySum = sum([float(task[money]) for task in record_totalcallback])
+    agg_info = {
+        "smallSuccessCount": round(float(smallSuccessCount),2),
+        "smallPriceSum": round(float(smallPriceSum),2),
+        "smallMoneySum": round(float(smallMoneySum),2),
+        "SuccessCount": round(float(SuccessCount),2),
+        "PriceSum": round(float(PriceSum),2),
+        "MoneySum": round(float(MoneySum),2),
+        "total": len(tasks)
+    }
+
+    return list_info, agg_info
+
+# if __name__ == '__main__':
+#     loop = asyncio.get_event_loop()
+#     loop.run_until_complete(get_channel_user_ids())

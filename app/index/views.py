@@ -13,7 +13,7 @@ from sqlalchemy.dialects.mysql import insert
 
 from models.alchemy_models import MUserInfo, t_tp_pcdd_callback, PDictionary, t_tp_xw_callback, TpTaskInfo, \
     t_tp_ibx_callback, TpJxwCallback, TpYwCallback, TpDyCallback, TpZbCallback
-from task.callback_task import fission_schema, cash_exchange, select_user_id
+from task.callback_task import fission_schema, cash_exchange, select_user_id, get_channel_user_ids, get_callback_infos
 from task.check_sign import check_xw_sign, check_ibx_sign, check_jxw_sign, check_yw_sign, check_dy_sign, check_zb_sign
 from util.log import logger
 from util.static_methods import serialize
@@ -102,6 +102,63 @@ async def index_name(request):
     return web.json_response({
         "ok": 1
     })
+
+
+@routes.get('/platform_list')
+async def get_platform_list(request):
+    json_result = {
+        "platform": [
+            {"name": "多游", "id": "duoyou"},
+            {"name": "闲玩", "id": "xianwan"},
+            {"name": "享玩", "id": "xiangwan"},
+            {"name": "爱变现", "id": "aibianxian"},
+            {"name": "职伴", "id": "zhiban"},
+            {"name": "鱼玩", "id": "yuwan"},
+            {"name": "聚享玩", "id": "juxiangwan"}
+        ],
+        "channel_list": [
+            {"name": "宝珠", "id": "baozhu"},
+            {"name": "小强", "id": "xq"},
+            {"name": "麒麟", "id": "PQK"}
+        ]
+    }
+
+    return web.json_response(json_result)
+
+
+@routes.get('/allcallback/list')
+async def all_callback_list(request):
+    params = {**request.query}
+    pa = copy.deepcopy(params)
+    for item in pa:
+        if not params[item]:
+            params.pop(item)
+    token = request.query.get('token')
+    channel = request.query.get('channel')
+    relation = request.query.get('relation')
+    platform = request.query.get("platform")
+    pageNum = request.query.get('pageNum')
+    pageSize = request.query.get('pageSize')
+
+    # 创建连接
+    connection = request['db_connection']
+    user_ids = await get_channel_user_ids(connection, channel)
+    print(user_ids)
+    list_info, agg_info = await get_callback_infos(connection, user_ids, platform, params)
+
+    # 获取平台表数据
+
+    json_result = {
+        "data": {
+            **agg_info,
+            "list": list_info,
+        },
+        "message": "操作成功",
+        "statusCode": "2000",
+        "token": token
+    }
+    print(json_result)
+    return web.json_response(json_result)
 
 
 @routes.get('/pcddcallback')
