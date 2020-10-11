@@ -8,11 +8,11 @@ from urllib.parse import quote
 from config import *
 
 from aiohttp import web
-from sqlalchemy import select, update, and_, text
+from sqlalchemy import select, update, and_, text, or_
 from sqlalchemy.dialects.mysql import insert
 
 from models.alchemy_models import MUserInfo, t_tp_pcdd_callback, PDictionary, t_tp_xw_callback, TpTaskInfo, \
-    t_tp_ibx_callback, TpJxwCallback, TpYwCallback, TpDyCallback, TpZbCallback
+    t_tp_ibx_callback, TpJxwCallback, TpYwCallback, TpDyCallback, TpZbCallback, LCoinChange
 from task.callback_task import fission_schema, cash_exchange, select_user_id, get_channel_user_ids, get_callback_infos
 from task.check_sign import check_xw_sign, check_ibx_sign, check_jxw_sign, check_yw_sign, check_dy_sign, check_zb_sign
 from util.log import logger
@@ -21,6 +21,7 @@ from util.static_methods import serialize
 routes = web.RouteTableDef()
 
 
+# 获取高额赚任务
 @routes.post('/get/hightasks')
 async def add_hightasks(request):
     r_json = await request.json()
@@ -78,63 +79,6 @@ async def add_hightasks(request):
         "count": len(db_results)
     })
 
-# @routes.post('/get/dygames')
-# async def add_dygames(request):
-#     r_json = await request.json()
-#     connection = request['db_connection']
-#     parsed_results = r_json['data']['records']
-#     db_results = []
-#     for parsed_result in parsed_results:
-#         db_result = {
-#             "id": parsed_result['taskId'],
-#             "name": parsed_result['name'],
-#             "logo": parsed_result['icon'],
-#             "type_id": 1,
-#             # 1-高额收益2-注册任务3-实名认证4-超简单5-其他
-#             "label": parsed_result['tags'],
-#             "reward": parsed_result['price'],
-#             "is_upper": 1,
-#             "is_signin": 1,
-#             "task_channel": "Aibianxian",
-#             "create_time": int(round(time.time() * 1000)),
-#             "update_time": int(round(time.time() * 1000)),
-#             "orders": 1,
-#             "task_info_url": parsed_result['detailUrl'],
-#
-#             "fulfil_time": None,
-#             "time_unit": None,
-#             "channel_task_number": None,
-#             "surplus_channel_task_number": None,
-#             "is_order": None,
-#             "order_time": None,
-#             "drReward": None,
-#         }
-#         db_results.append(db_result)
-#
-#     # save product history
-#     insert_stmt = insert(TpTaskInfo)
-#     on_duplicate_key_stmt = insert_stmt.on_duplicate_key_update(
-#         id=insert_stmt.inserted.id,
-#         name=insert_stmt.inserted.name,
-#         logo=insert_stmt.inserted.logo,
-#         type_id=insert_stmt.inserted.type_id,
-#         label=insert_stmt.inserted.label,
-#         reward=insert_stmt.inserted.reward,
-#         is_upper=insert_stmt.inserted.is_upper,
-#         is_signin=insert_stmt.inserted.is_signin,
-#         task_channel=insert_stmt.inserted.task_channel,
-#         create_time=insert_stmt.inserted.create_time,
-#         update_time=insert_stmt.inserted.update_time,
-#         orders=insert_stmt.inserted.orders,
-#         task_info_url=insert_stmt.inserted.task_info_url
-#     )
-#     await connection.execute(on_duplicate_key_stmt, db_results)
-#
-#     return web.json_response({
-#         "ok": "爱变现高额任务拉取成功",
-#         "count": len(db_results)
-#     })
-
 
 @routes.get('/index_name')
 async def index_name(request):
@@ -161,6 +105,7 @@ async def index_name(request):
     })
 
 
+# 平台回调摘选参数
 @routes.get('/platform_list')
 async def get_platform_list(request):
     json_result = {
@@ -183,6 +128,7 @@ async def get_platform_list(request):
     return web.json_response(json_result)
 
 
+# 全平台回调
 @routes.get('/allcallback/list')
 async def all_callback_list(request):
     params = {**request.query}
@@ -218,6 +164,7 @@ async def all_callback_list(request):
     return web.json_response(json_result)
 
 
+# 享玩回调
 @routes.get('/pcddcallback')
 async def get_pcddcallback(request):
     connection = request['db_connection']
@@ -309,6 +256,7 @@ async def get_pcddcallback(request):
     return web.json_response(json_result)
 
 
+# 闲玩回调
 @routes.get('/xwcallback')
 async def get_xwcallback(request):
     connection = request['db_connection']
@@ -415,6 +363,7 @@ async def get_xwcallback(request):
     return web.json_response(json_result)
 
 
+# 爱变现回调
 @routes.post('/ibxcallback')
 async def get_ibxcallback(request):
     connection = request['db_connection']
@@ -520,6 +469,7 @@ async def get_ibxcallback(request):
     return web.json_response(json_result)
 
 
+# 爱变现高额赚回调
 @routes.post('/ibxtaskcallback')
 async def post_ibxtaskcallback(request):
     connection = request['db_connection']
@@ -625,6 +575,7 @@ async def post_ibxtaskcallback(request):
     return web.json_response(json_result)
 
 
+# 聚享玩回调
 @routes.get('/jxwcallback')
 async def get_jxwcallback(request):
     connection = request['db_connection']
@@ -757,6 +708,7 @@ async def get_jxwcallback(request):
     return web.Response(text=json_result)
 
 
+# 鱼丸回调
 @routes.post('/ywcallback')
 async def post_ywcallback(request):
     connection = request['db_connection']
@@ -869,6 +821,7 @@ async def post_ywcallback(request):
     return web.json_response(json_result)
 
 
+# 多游回调
 @routes.get('/dycallback')
 async def get_dycallback(request):
     connection = request['db_connection']
@@ -981,6 +934,7 @@ async def get_dycallback(request):
     return web.json_response(json_result)
 
 
+# 职伴回调
 @routes.post('/zbcallback')
 async def post_zbcallback(request):
     connection = request['db_connection']
@@ -1099,6 +1053,7 @@ async def post_zbcallback(request):
     return web.json_response(json_result)
 
 
+# 回调重发,全平台
 @routes.get('/recallback')
 async def restart_callback(request):
     platform = request.query.get("platform")
@@ -1244,3 +1199,124 @@ async def restart_callback(request):
     return web.json_response({
         "成功处理任务": i
     })
+
+
+# 财务流水渠道明细
+@routes.get('/coinchange')
+async def get_coinchange(request):
+    params = {**request.query}
+    pa = copy.deepcopy(params)
+    for item in pa:
+        if not params[item]:
+            params.pop(item)
+    connection = request['db_connection']
+    conditions = []
+
+    if "searchType" not in params:
+
+        conditions.append(
+            or_(MUserInfo.channel_code == params['channel'], MUserInfo.parent_channel_code == params['channel']))
+
+    elif params['searchType'] == "1":
+        conditions.append(MUserInfo.channel_code == params['channel'])
+    elif params['searchType'] == "2":
+        # 先查一级,再查一级的徒弟
+        select_1_user = select([MUserInfo]).where(MUserInfo.channel_code == params['channel'])
+        cur_1 = await connection.execute(select_1_user)
+        rec_1 = await cur_1.fetchall()
+        first_user_ids = [user_info['user_id'] for user_info in rec_1]
+        # 查一级ID的徒弟
+        select_2_user = select([MUserInfo]).where(MUserInfo.referrer.in_(first_user_ids))
+        cur_2 = await connection.execute(select_2_user)
+        rec_2 = await cur_2.fetchall()
+        second_user_ids = [user_info['user_id'] for user_info in rec_2]
+        firset_and_second = [*first_user_ids, *second_user_ids]
+        # 加入主查询
+        conditions.append(MUserInfo.user_id.in_(firset_and_second))
+    if "mobile" in params:
+        conditions.append(MUserInfo.mobile == params['mobile'])
+    if "accountId" in params:
+        conditions.append(MUserInfo.account_id == params['accountId'])
+    # 根据查询维度获取用户ids
+    select_user_ids = select([MUserInfo]).where(and_(*conditions))
+    logger.info(select_user_ids)
+    cur_user = await connection.execute(select_user_ids)
+    rec_user = await cur_user.fetchall()
+    search_user_ids = [user_info['user_id'] for user_info in rec_user]
+
+    # 流水查询条件
+    change_conditions = [LCoinChange.user_id.in_(search_user_ids)]
+    if "changedType" in params:
+        change_conditions.append(LCoinChange.changed_type == int(params['changedType']))
+    if "startTime" in params:
+        change_conditions.append(LCoinChange.changed_time >= int(params['startTime']))
+    if "endTime" in params:
+        change_conditions.append(LCoinChange.changed_time <= int(params['endTime']))
+    if "coinMin" in params:
+        change_conditions.append(LCoinChange.amount >= int(params['coinMin']))
+    if "coinMax" in params:
+        change_conditions.append(LCoinChange.amount <= int(params['coinMax']))
+    # 流水查询分页
+    page_size = int(params['pageSize'])
+    pageoffset = (int(params['pageNum']) - 1) * page_size
+
+    select_coin_change = select([LCoinChange]).where(and_(*change_conditions)).limit(page_size).offset(pageoffset)
+    cur_coin = await connection.execute(select_coin_change)
+    rec_coin = await cur_coin.fetchall()
+    select_all_change = select([LCoinChange]).where(and_(*change_conditions))
+    cur_total = await connection.execute(select_all_change)
+    rec_total = await cur_total.fetchall()
+    total = len(rec_total)
+    pageCount = (total + page_size - 1) / page_size
+
+    totalRevenuePrice = 0
+    subExpendPrice = 0
+    totalExpendPrice = 0
+    subRevenuePrice = 0
+    list_info = []
+
+    # 总结果
+    for row in rec_total:
+        if row['flow_type'] == 1:
+            totalRevenuePrice += row['amount']
+        else:
+            totalExpendPrice += row['amount']
+
+    # 分页结果
+    for user in rec_user:
+        for change in rec_coin:
+            if user['user_id'] == change['user_id']:
+                result = {
+                    "accountId": user['account_id'],
+                    "equipmentType": user['equipment_type'],
+                    "userName": user['user_name'],
+                    "level": user['level'],
+                    "changedType": change['changed_type'],
+                    "revenue": change['amount'] if change['flow_type'] == 1 else 0,
+                    "expend": change['amount'] if change['flow_type'] == 2 else 0,
+                    "coinBalance": change['coin_balance'],
+                    "changedTime": change['changed_time'],
+                    "registerTime": user['create_time'],
+                    "flowType": change['flow_type'],
+                    "status": change['status']
+                }
+                list_info.append(result)
+                subExpendPrice += result['expend']
+                subRevenuePrice += result['revenue']
+
+    json_result = {
+        "data": {
+            "res": "1",
+            "totalRevenuePrice": totalRevenuePrice,
+            "pageCount": pageCount,
+            "total": total,
+            "subExpendPrice": subExpendPrice,
+            "list": list_info,
+            "totalExpendPrice": totalExpendPrice,
+            "subRevenuePrice": subRevenuePrice
+        },
+        "message": "操作成功",
+        "statusCode": "2000",
+        "token": "70f0ffd18fb3c3c52f4f83b2cb56ae7c"
+    }
+    return web.json_response(json_result)
