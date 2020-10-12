@@ -1311,7 +1311,6 @@ async def get_coinchange(request):
     for user in rec_user:
         for change in rec_coin:
             if user['user_id'] == change['user_id']:
-                print("---------------done")
                 result = {
                     "accountId": user['account_id'],
                     "equipmentType": user['equipment_type'],
@@ -1330,7 +1329,7 @@ async def get_coinchange(request):
                 subExpendPrice += result['expend']
                 subRevenuePrice += result['revenue']
 
-    logger.info(list_info)
+    # logger.info(list_info)
     json_result = {
         "data": {
             "res": "1",
