@@ -2,7 +2,7 @@
 import asyncio
 import time
 
-from sqlalchemy import select, update, insert, and_, text
+from sqlalchemy import select, update, insert, and_, text, or_
 
 from models.alchemy_models import MUserInfo, MFissionScheme, LCoinChange, TpDyCallback, t_tp_pcdd_callback, \
     t_tp_xw_callback, t_tp_ibx_callback, TpZbCallback, TpYwCallback, TpJxwCallback, MChannelInfo
@@ -140,12 +140,15 @@ async def select_user_id(connection, t_or_id):
 # 查询渠道用户IDs
 async def get_channel_user_ids(connection, channel):
     select_user_ids = select([MUserInfo]).where(
-        MUserInfo.channel_code == channel
+        or_(
+            MUserInfo.channel_code == channel,
+            MUserInfo.parent_channel_code == channel
+        )
     )
     cursor = await connection.execute(select_user_ids)
     record = await cursor.fetchall()
-    user_ids = [user_info['user_id'] for user_info in record]
-    tokens = [user_info['token'] for user_info in record]
+    user_ids = [user_info['user_id'] for user_info in record if user_info["user_id"]]
+    tokens = [user_info['token'] for user_info in record if user_info["token"]]
     return [*user_ids, *tokens]
 
 
@@ -217,7 +220,7 @@ async def get_callback_infos(connection, user_ids, platform, params):
             "ordernum": ["uid", "task_id"],
             "userid": "uid",
             "adid": "task_id",
-            "adname": "advert_name",
+            "adname": "title",
             "deviceid": "dev_code",
             "price": "media_price",
             "money": "price",
@@ -303,6 +306,7 @@ async def get_callback_infos(connection, user_ids, platform, params):
     conditions.append(text(userid + " IN " + str(tuple(user_ids))))
 
     select_allcallback = select([s_table]).where(and_(*conditions))
+    print(select_allcallback)
     cursor = await connection.execute(select_allcallback)
     record = await cursor.fetchall()
     tasks = serialize(cursor, record)
@@ -316,6 +320,7 @@ async def get_callback_infos(connection, user_ids, platform, params):
         )
         real_c = await connection.execute(select_real_id)
         real_r = await real_c.fetchone()
+        real_record = ""
         if real_r:
             select_channel_info = select([MChannelInfo]).where(
                 MChannelInfo.channel_code == real_r['channel_code']
@@ -324,7 +329,7 @@ async def get_callback_infos(connection, user_ids, platform, params):
             real_record = await real_channel_info.fetchone()
         result = {
             "accountId": real_r['account_id'] if real_r else "未知用户",
-            "ordernum": task[ordernum],
+            "ordernum": task[ordernum] if platform != "zhiban" else "",
             "adid": task[adid],
             "pid": real_record['channel_id'] if real_r and real_record else "未知",
             "adname": task[adname],
