@@ -1033,8 +1033,8 @@ async def post_zbcallback(request):
             connection,
             user_id=deal['uid'],
             amount=task_coin,
-            changed_type=7,
-            reason="职伴游戏任务奖励",
+            changed_type=10,
+            reason="职伴任务奖励",
             remarks=deal['title'] + deal['msg'],
             flow_type=1
         )
