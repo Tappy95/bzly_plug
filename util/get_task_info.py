@@ -90,7 +90,7 @@ def get_dy_games():
         "device_ids": quote(device_ids),
         "device_type": device_type,
         "page": "1",
-        "size": "100",
+        "size": "500",
         "sign": "22b2a8e131a0b9042d40a7a7e21f02fa",
     }
     r = requests.get('https://api.ads66.com/api/list', params=params)

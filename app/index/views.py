@@ -119,7 +119,8 @@ async def get_platform_list(request):
     cur_channel = await connection.execute(select_channel_info)
     rec_channel = await cur_channel.fetchall()
     print(serialize(cur_channel, rec_channel))
-    channel_list = [{"name":channel['channel_name'], "id":channel['channel_code']} for channel in rec_channel]
+    channel_list = [{"name": channel['channel_name'], "id": channel['channel_code']} for channel in rec_channel]
+    channel_list.append({"name": "全渠道", "id": "all"})
     json_result = {
         "platform": [
             {"name": "多游", "id": "duoyou"},
@@ -1223,7 +1224,6 @@ async def get_coinchange(request):
         params['channel'] = params['channelType']
 
     if "searchType" not in params:
-
         conditions.append(
             or_(MUserInfo.channel_code == params['channel'], MUserInfo.parent_channel_code == params['channel']))
 
@@ -1240,22 +1240,32 @@ async def get_coinchange(request):
         cur_2 = await connection.execute(select_2_user)
         rec_2 = await cur_2.fetchall()
         second_user_ids = [user_info['user_id'] for user_info in rec_2]
-        firset_and_second = [*first_user_ids, *second_user_ids]
+        # firset_and_second = [*second_user_ids]
         # 加入主查询
-        conditions.append(MUserInfo.user_id.in_(firset_and_second))
+        conditions.append(MUserInfo.user_id.in_(second_user_ids))
     if "mobile" in params:
         conditions.append(MUserInfo.mobile == params['mobile'])
     if "accountId" in params:
         conditions.append(MUserInfo.account_id == params['accountId'])
-    # 根据查询维度获取用户ids
-    select_user_ids = select([MUserInfo]).where(and_(*conditions))
-    logger.info(select_user_ids)
-    cur_user = await connection.execute(select_user_ids)
-    rec_user = await cur_user.fetchall()
+    if params['channel'] == "all":
+        # 根据查询维度获取用户ids
+        select_user_ids = select([MUserInfo])
+        # logger.info(select_user_ids)
+        cur_user = await connection.execute(select_user_ids)
+        rec_user = await cur_user.fetchall()
+        # logger.info(serialize(cur_user,rec_user))
+    else:
+        # 根据查询维度获取用户ids
+        select_user_ids = select([MUserInfo]).where(and_(*conditions))
+        # logger.info(select_user_ids)
+        cur_user = await connection.execute(select_user_ids)
+        rec_user = await cur_user.fetchall()
     search_user_ids = [user_info['user_id'] for user_info in rec_user]
 
     # 流水查询条件
+    # 判断是否查询全部渠道收益
     change_conditions = [LCoinChange.user_id.in_(search_user_ids)]
+
     if "changedType" in params:
         change_conditions.append(LCoinChange.changed_type == int(params['changedType']))
     if "startTime" in params:
@@ -1274,9 +1284,11 @@ async def get_coinchange(request):
     pageoffset = (int(params['pageNum']) - 1) * page_size
 
     select_coin_change = select([LCoinChange]).where(and_(*change_conditions)).limit(page_size).offset(pageoffset)
+    # logger.info(select_coin_change)
+    select_all_change = select([LCoinChange]).where(and_(*change_conditions))
     cur_coin = await connection.execute(select_coin_change)
     rec_coin = await cur_coin.fetchall()
-    select_all_change = select([LCoinChange]).where(and_(*change_conditions))
+    # logger.info(serialize(cur_coin, rec_coin))
     cur_total = await connection.execute(select_all_change)
     rec_total = await cur_total.fetchall()
     total = len(rec_total)
@@ -1299,6 +1311,7 @@ async def get_coinchange(request):
     for user in rec_user:
         for change in rec_coin:
             if user['user_id'] == change['user_id']:
+                print("---------------done")
                 result = {
                     "accountId": user['account_id'],
                     "equipmentType": user['equipment_type'],
@@ -1317,6 +1330,7 @@ async def get_coinchange(request):
                 subExpendPrice += result['expend']
                 subRevenuePrice += result['revenue']
 
+    logger.info(list_info)
     json_result = {
         "data": {
             "res": "1",
