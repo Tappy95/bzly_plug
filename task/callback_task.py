@@ -340,7 +340,7 @@ async def get_callback_infos(connection, user_ids, platform, params):
             "dlevel": 1,
             "price": task[price],
             "money": task[money],
-            "status": 1 if task['status'] == success_status else 2
+            "status": 2 if task['status'] == success_status else 1
 
         }
         list_info.append(result)
