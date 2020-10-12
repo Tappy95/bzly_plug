@@ -12,7 +12,7 @@ from sqlalchemy import select, update, and_, text, or_
 from sqlalchemy.dialects.mysql import insert
 
 from models.alchemy_models import MUserInfo, t_tp_pcdd_callback, PDictionary, t_tp_xw_callback, TpTaskInfo, \
-    t_tp_ibx_callback, TpJxwCallback, TpYwCallback, TpDyCallback, TpZbCallback, LCoinChange
+    t_tp_ibx_callback, TpJxwCallback, TpYwCallback, TpDyCallback, TpZbCallback, LCoinChange, MChannelInfo, MChannel
 from task.callback_task import fission_schema, cash_exchange, select_user_id, get_channel_user_ids, get_callback_infos
 from task.check_sign import check_xw_sign, check_ibx_sign, check_jxw_sign, check_yw_sign, check_dy_sign, check_zb_sign
 from util.log import logger
@@ -108,6 +108,18 @@ async def index_name(request):
 # 平台回调摘选参数
 @routes.get('/platform_list')
 async def get_platform_list(request):
+    connection = request['db_connection']
+    select_channel_info = select([
+        MChannelInfo.channel_id,
+        MChannelInfo.channel_code,
+        MChannel.channel_name
+    ]).where(
+        MChannelInfo.channel_id == MChannel.id
+    )
+    cur_channel = await connection.execute(select_channel_info)
+    rec_channel = await cur_channel.fetchall()
+    print(serialize(cur_channel, rec_channel))
+    channel_list = [{"name":channel['channel_name'], "id":channel['channel_code']} for channel in rec_channel]
     json_result = {
         "platform": [
             {"name": "多游", "id": "duoyou"},
@@ -118,11 +130,7 @@ async def get_platform_list(request):
             {"name": "鱼玩", "id": "yuwan"},
             {"name": "聚享玩", "id": "juxiangwan"}
         ],
-        "channel_list": [
-            {"name": "宝珠", "id": "baozhu"},
-            {"name": "小强", "id": "xq"},
-            {"name": "麒麟", "id": "PQK"}
-        ]
+        "channel_list": channel_list
     }
 
     return web.json_response(json_result)
@@ -1211,6 +1219,8 @@ async def get_coinchange(request):
             params.pop(item)
     connection = request['db_connection']
     conditions = []
+    if "channelType" in params:
+        params['channel'] = params['channelType']
 
     if "searchType" not in params:
 
@@ -1256,6 +1266,9 @@ async def get_coinchange(request):
         change_conditions.append(LCoinChange.amount >= int(params['coinMin']))
     if "coinMax" in params:
         change_conditions.append(LCoinChange.amount <= int(params['coinMax']))
+    if "rewardType" in params and params['rewardType'] == "1":
+        change_conditions.append(LCoinChange.changed_type != 9)
+        change_conditions.append(LCoinChange.changed_type != 5)
     # 流水查询分页
     page_size = int(params['pageSize'])
     pageoffset = (int(params['pageNum']) - 1) * page_size
