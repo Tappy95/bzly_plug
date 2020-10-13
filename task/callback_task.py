@@ -360,12 +360,12 @@ async def get_callback_infos(connection, user_ids, platform, params):
     PriceSum = sum([float(task[price]) for task in record_totalcallback])
     MoneySum = sum([float(task[money]) for task in record_totalcallback])
     agg_info = {
-        "smallSuccessCount": round(float(smallSuccessCount),2),
-        "smallPriceSum": round(float(smallPriceSum),2),
-        "smallMoneySum": round(float(smallMoneySum),2),
-        "SuccessCount": round(float(SuccessCount),2),
-        "PriceSum": round(float(PriceSum),2),
-        "MoneySum": round(float(MoneySum),2),
+        "smallSuccessCount": int(float(smallSuccessCount),2),
+        "smallPriceSum": int(float(smallPriceSum),2),
+        "smallMoneySum": int(float(smallMoneySum),2),
+        "SuccessCount": int(float(SuccessCount),2),
+        "PriceSum": int(float(PriceSum),2),
+        "MoneySum": int(float(MoneySum),2),
         "total": len(tasks)
     }
 
