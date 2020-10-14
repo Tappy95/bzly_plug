@@ -1240,9 +1240,26 @@ async def get_coinchange(request):
         cur_2 = await connection.execute(select_2_user)
         rec_2 = await cur_2.fetchall()
         second_user_ids = [user_info['user_id'] for user_info in rec_2]
-        # firset_and_second = [*second_user_ids]
         # 加入主查询
         conditions.append(MUserInfo.user_id.in_(second_user_ids))
+    elif params['searchType'] == "3":
+        select_1_user = select([MUserInfo]).where(MUserInfo.channel_code == params['channel'])
+        cur_1 = await connection.execute(select_1_user)
+        rec_1 = await cur_1.fetchall()
+        first_user_ids = [user_info['user_id'] for user_info in rec_1]
+        select_all_user = select([MUserInfo]).where(
+            or_(MUserInfo.channel_code == params['channel'],
+                MUserInfo.parent_channel_code == params['channel'])
+        )
+        cur_all = await connection.execute(select_all_user)
+        rec_all = await cur_all.fetchall()
+        all_user_ids = [user_info['user_id'] for user_info in rec_all]
+        not_first_ids = []
+        for not_first in all_user_ids:
+            if not_first not in first_user_ids:
+                not_first_ids.append(not_first)
+        # 加入主查询
+        conditions.append(MUserInfo.user_id.in_(not_first_ids))
     if "mobile" in params:
         conditions.append(MUserInfo.mobile == params['mobile'])
     if "accountId" in params:
