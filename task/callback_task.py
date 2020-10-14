@@ -303,7 +303,8 @@ async def get_callback_infos(connection, user_ids, platform, params):
             conditions.append(text(ordernum + '="' + params['yoleid'] + '"'))
 
     # 过滤渠道用户
-    conditions.append(text(userid + " IN " + str(tuple(user_ids))))
+    if user_ids:
+        conditions.append(text(userid + " IN " + str(tuple(user_ids))))
 
     select_allcallback = select([s_table]).where(and_(*conditions))
     print(select_allcallback)
