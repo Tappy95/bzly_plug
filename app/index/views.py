@@ -390,7 +390,7 @@ async def get_ibxcallback(request):
         callback_params = {
             "app_key": r_json.get('app_key'),
             "device": r_json.get('device'),
-            "device_info": int(r_json.get('device_info')),
+            "device_info": r_json.get('device_info'),
             "target_id": r_json.get('target_id'),
             "unit": r_json.get('unit'),
             "time_end": int(r_json.get('time_end')),

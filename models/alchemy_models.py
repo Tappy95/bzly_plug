@@ -1948,7 +1948,7 @@ t_tp_ibx_callback = Table(
     'tp_ibx_callback', metadata,
     Column('app_key', String(32), comment='平台的应用id'),
     Column('device', String(32), comment='ios，安卓'),
-    Column('device_info', BigInteger, comment='安卓传imei,ios传参idfa值'),
+    Column('device_info', String(64), comment='安卓传imei,ios传参idfa值'),
     Column('target_id', String(128), comment='接入平台的用户唯一标示'),
     Column('unit', String(32), comment='接入平台的奖励单位'),
     Column('time_end', BigInteger, comment='领取完成时间，格式为yyyyMMddHHmmss，如2009年12月25日9点10分10秒表示为20091225091010'),
