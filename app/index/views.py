@@ -1223,13 +1223,13 @@ async def get_coinchange(request):
     if "channelType" in params:
         params['channel'] = params['channelType']
 
-    if "searchType" not in params:
+    if "searchType" not in params and params['channel'] != "all":
         conditions.append(
             or_(MUserInfo.channel_code == params['channel'], MUserInfo.parent_channel_code == params['channel']))
 
-    elif params['searchType'] == "1":
+    elif params['searchType'] == "1" and params['channel'] != "all":
         conditions.append(MUserInfo.channel_code == params['channel'])
-    elif params['searchType'] == "2":
+    elif params['searchType'] == "2" and params['channel'] != "all":
         # 先查一级,再查一级的徒弟
         select_1_user = select([MUserInfo]).where(MUserInfo.channel_code == params['channel'])
         cur_1 = await connection.execute(select_1_user)
@@ -1242,7 +1242,7 @@ async def get_coinchange(request):
         second_user_ids = [user_info['user_id'] for user_info in rec_2]
         # 加入主查询
         conditions.append(MUserInfo.user_id.in_(second_user_ids))
-    elif params['searchType'] == "3":
+    elif params['searchType'] == "3" and params['channel'] != "all":
         select_1_user = select([MUserInfo]).where(MUserInfo.channel_code == params['channel'])
         cur_1 = await connection.execute(select_1_user)
         rec_1 = await cur_1.fetchall()
@@ -1264,19 +1264,11 @@ async def get_coinchange(request):
         conditions.append(MUserInfo.mobile == params['mobile'])
     if "accountId" in params:
         conditions.append(MUserInfo.account_id == params['accountId'])
-    if params['channel'] == "all":
-        # 根据查询维度获取用户ids
-        select_user_ids = select([MUserInfo])
-        # logger.info(select_user_ids)
-        cur_user = await connection.execute(select_user_ids)
-        rec_user = await cur_user.fetchall()
-        # logger.info(serialize(cur_user,rec_user))
-    else:
-        # 根据查询维度获取用户ids
-        select_user_ids = select([MUserInfo]).where(and_(*conditions))
-        # logger.info(select_user_ids)
-        cur_user = await connection.execute(select_user_ids)
-        rec_user = await cur_user.fetchall()
+    # 根据查询维度获取用户ids
+    select_user_ids = select([MUserInfo]).where(and_(*conditions))
+    # logger.info(select_user_ids)
+    cur_user = await connection.execute(select_user_ids)
+    rec_user = await cur_user.fetchall()
     search_user_ids = [user_info['user_id'] for user_info in rec_user]
 
     # 流水查询条件
