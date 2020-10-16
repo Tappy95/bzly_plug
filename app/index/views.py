@@ -1336,7 +1336,9 @@ async def get_coinchange(request):
                     "changedTime": change['changed_time'],
                     "registerTime": user['create_time'],
                     "flowType": change['flow_type'],
-                    "status": change['status']
+                    "status": change['status'],
+                    "reason": change['reason'] if change['reason'] else "",
+                    "remarks": change['remarks'] if change['remarks'] else "",
                 }
                 list_info.append(result)
                 subExpendPrice += result['expend']
