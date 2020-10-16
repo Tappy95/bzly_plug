@@ -163,10 +163,11 @@ async def checkin_faker():
 
 # 更新每日签到奖池,5分钟一次
 async def update_checkin_result():
+    logger.info("Begain update_checkin_result")
     # 查询签到log表
     cur = time.time()
-    today0 = (cur - cur % 86400 - 8 * 3600) * 1000
-    today24 = (cur - cur % 86400 + 86400 - 8 * 3600) * 1000
+    today0 = (cur - cur % 86400 + 86400 - 8 * 3600) * 1000
+    today24 = (cur - cur % 86400 + 86400 - 8 * 3600 + 86400) * 1000
 
     with engine.connect() as conn:
         select_if_result = conn.execute(select([CCheckinResult]).where(CCheckinResult.create_Time == today0)).fetchone()
@@ -198,12 +199,13 @@ async def update_checkin_result():
                 CCheckinResult.id == select_if_result['id']
             ).values(checkin_result))
         else:
-            ins = insert(CCheckinLog).values(checkin_result)
+            ins = insert(CCheckinResult).values(checkin_result)
             conn.execute(ins)
 
 
 # 每日12点根据当日真实奖池给用户发奖励,一小时一次,检测当前时间是否为午间12点
 async def checkin_user_reward():
+    logger.info("Begain checkin_user_reward")
     # 判断时间
     cur_hour = int(datetime.fromtimestamp(time.time()).strftime('%H'))
     cur = time.time()
