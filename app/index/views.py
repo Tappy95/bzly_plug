@@ -1355,3 +1355,9 @@ async def get_coinchange(request):
         "token": "70f0ffd18fb3c3c52f4f83b2cb56ae7c"
     }
     return web.json_response(json_result)
+
+
+@routes.get('/time')
+async def get_time(request):
+    timenow = int(time.time())
+    return web.Response(text=str(timenow))
