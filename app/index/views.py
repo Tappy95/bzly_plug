@@ -3,6 +3,7 @@ import json
 import time
 import traceback
 from datetime import datetime
+from operator import itemgetter
 from urllib.parse import quote
 
 from config import *
@@ -157,13 +158,13 @@ async def all_callback_list(request):
     user_ids = await get_channel_user_ids(connection, channel)
     print(user_ids)
     list_info, agg_info = await get_callback_infos(connection, user_ids, platform, params)
-
+    list_info.reverse()
     # 获取平台表数据
 
     json_result = {
         "data": {
             **agg_info,
-            "list": list_info,
+            "list": list_info if list_info else [],
         },
         "message": "操作成功",
         "statusCode": "2000",
@@ -444,8 +445,8 @@ async def get_ibxcallback(request):
         )
         cur_ctm = await connection.execute(select_coin_to_money)
         rec_ctm = await cur_ctm.fetchone()
-        task_coin = callback_params['user_reward'] * int(rec_ctm['dic_value'])
-        # task_coin = callback_params['user_reward']
+        # task_coin = callback_params['user_reward'] * int(rec_ctm['dic_value'])
+        task_coin = callback_params['user_reward']
 
         c_result = await cash_exchange(
             connection,
@@ -1223,43 +1224,46 @@ async def get_coinchange(request):
     if "channelType" in params:
         params['channel'] = params['channelType']
 
-    if "searchType" not in params and params['channel'] != "all":
-        conditions.append(
-            or_(MUserInfo.channel_code == params['channel'], MUserInfo.parent_channel_code == params['channel']))
+    if params['channel'] != "all":
+        if "searchType" not in params:
+            conditions.append(
+                or_(MUserInfo.channel_code == params['channel'], MUserInfo.parent_channel_code == params['channel']))
+        else:
+            if params['searchType'] == "1":
+                conditions.append(MUserInfo.channel_code == params['channel'])
+            elif params['searchType'] == "2":
+                # 先查一级,再查一级的徒弟
+                select_1_user = select([MUserInfo]).where(MUserInfo.channel_code == params['channel'])
+                cur_1 = await connection.execute(select_1_user)
+                rec_1 = await cur_1.fetchall()
+                first_user_ids = [user_info['user_id'] for user_info in rec_1]
+                # 查一级ID的徒弟
+                select_2_user = select([MUserInfo]).where(MUserInfo.referrer.in_(first_user_ids))
+                cur_2 = await connection.execute(select_2_user)
+                rec_2 = await cur_2.fetchall()
+                second_user_ids = [user_info['user_id'] for user_info in rec_2]
+                # 加入主查询
+                conditions.append(MUserInfo.user_id.in_(second_user_ids))
+            elif params['searchType'] == "3":
+                select_1_user = select([MUserInfo]).where(MUserInfo.channel_code == params['channel'])
+                cur_1 = await connection.execute(select_1_user)
+                rec_1 = await cur_1.fetchall()
+                first_user_ids = [user_info['user_id'] for user_info in rec_1]
+                select_all_user = select([MUserInfo]).where(
+                    or_(MUserInfo.channel_code == params['channel'],
+                        MUserInfo.parent_channel_code == params['channel'])
+                )
+                cur_all = await connection.execute(select_all_user)
+                rec_all = await cur_all.fetchall()
+                all_user_ids = [user_info['user_id'] for user_info in rec_all]
+                not_first_ids = []
+                for not_first in all_user_ids:
+                    if not_first not in first_user_ids:
+                        not_first_ids.append(not_first)
+                # 加入主查询
+                conditions.append(MUserInfo.user_id.in_(not_first_ids))
 
-    elif params['searchType'] == "1" and params['channel'] != "all":
-        conditions.append(MUserInfo.channel_code == params['channel'])
-    elif params['searchType'] == "2" and params['channel'] != "all":
-        # 先查一级,再查一级的徒弟
-        select_1_user = select([MUserInfo]).where(MUserInfo.channel_code == params['channel'])
-        cur_1 = await connection.execute(select_1_user)
-        rec_1 = await cur_1.fetchall()
-        first_user_ids = [user_info['user_id'] for user_info in rec_1]
-        # 查一级ID的徒弟
-        select_2_user = select([MUserInfo]).where(MUserInfo.referrer.in_(first_user_ids))
-        cur_2 = await connection.execute(select_2_user)
-        rec_2 = await cur_2.fetchall()
-        second_user_ids = [user_info['user_id'] for user_info in rec_2]
-        # 加入主查询
-        conditions.append(MUserInfo.user_id.in_(second_user_ids))
-    elif params['searchType'] == "3" and params['channel'] != "all":
-        select_1_user = select([MUserInfo]).where(MUserInfo.channel_code == params['channel'])
-        cur_1 = await connection.execute(select_1_user)
-        rec_1 = await cur_1.fetchall()
-        first_user_ids = [user_info['user_id'] for user_info in rec_1]
-        select_all_user = select([MUserInfo]).where(
-            or_(MUserInfo.channel_code == params['channel'],
-                MUserInfo.parent_channel_code == params['channel'])
-        )
-        cur_all = await connection.execute(select_all_user)
-        rec_all = await cur_all.fetchall()
-        all_user_ids = [user_info['user_id'] for user_info in rec_all]
-        not_first_ids = []
-        for not_first in all_user_ids:
-            if not_first not in first_user_ids:
-                not_first_ids.append(not_first)
-        # 加入主查询
-        conditions.append(MUserInfo.user_id.in_(not_first_ids))
+
     if "mobile" in params:
         conditions.append(MUserInfo.mobile == params['mobile'])
     if "accountId" in params:
@@ -1337,7 +1341,7 @@ async def get_coinchange(request):
                 list_info.append(result)
                 subExpendPrice += result['expend']
                 subRevenuePrice += result['revenue']
-
+    newlist = sorted(list_info, key=itemgetter('changedTime'))
     # logger.info(list_info)
     json_result = {
         "data": {
@@ -1346,7 +1350,7 @@ async def get_coinchange(request):
             "pageCount": pageCount,
             "total": total,
             "subExpendPrice": subExpendPrice,
-            "list": list_info,
+            "list": newlist,
             "totalExpendPrice": totalExpendPrice,
             "subRevenuePrice": subRevenuePrice
         },
