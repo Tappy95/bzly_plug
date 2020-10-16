@@ -1263,7 +1263,6 @@ async def get_coinchange(request):
                 # 加入主查询
                 conditions.append(MUserInfo.user_id.in_(not_first_ids))
 
-
     if "mobile" in params:
         conditions.append(MUserInfo.mobile == params['mobile'])
     if "accountId" in params:
@@ -1296,7 +1295,8 @@ async def get_coinchange(request):
     page_size = int(params['pageSize'])
     pageoffset = (int(params['pageNum']) - 1) * page_size
 
-    select_coin_change = select([LCoinChange]).where(and_(*change_conditions)).limit(page_size).offset(pageoffset)
+    select_coin_change = select([LCoinChange]).where(and_(*change_conditions)).order_by(
+        LCoinChange.changed_time.desc()).limit(page_size).offset(pageoffset)
     # logger.info(select_coin_change)
     select_all_change = select([LCoinChange]).where(and_(*change_conditions))
     cur_coin = await connection.execute(select_coin_change)
