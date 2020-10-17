@@ -209,12 +209,50 @@ async def checkin_user_reward():
     # 判断时间
     cur_hour = int(datetime.fromtimestamp(time.time()).strftime('%H'))
     cur = time.time()
-    today0 = (cur - cur % 86400 - 8 * 3600) * 1000
+    today12 = (cur - cur % 86400 + 4 * 3600) * 1000
+    yesterday12 = (cur - cur % 86400 - 20 * 3600) * 1000
     if cur_hour == 12:
         # 获取当前真实用户奖池
         with engine.connect() as conn:
+            # 更新当日奖池
+            # 统计午间12点之间的24小时内数据
+            select_if_result = conn.execute(
+                select([CCheckinResult]).where(CCheckinResult.create_Time == today12)).fetchone()
+
+            select_log = conn.execute(select([CCheckinLog]).where(
+                and_(
+                    # CCheckinLog.user_type == 1,
+                    CCheckinLog.create_time > yesterday12,
+                    CCheckinLog.create_time < today12,
+                )
+            )).fetchall()
+            sum_all_coin = sum([user['pay_coin'] for user in select_log])
+            sum_real_coin = sum([user['pay_coin'] for user in select_log if user['user_type'] == 1])
+            success_number = len([user['id'] for user in select_log if user['state'] == 2])
+            fail_number = len([user['id'] for user in select_log if user['state'] == 1])
+            success_real_number = len(
+                [user['id'] for user in select_log if user['state'] == 2 and user['user_type'] == 1])
+            fail_real_number = len([user['id'] for user in select_log if user['state'] == 1 and user['user_type'] == 1])
+            checkin_result = {
+                "bonus_pool": sum_all_coin,
+                "success_number": success_number,
+                "fail_number": fail_number,
+                "success_real_number": success_real_number,
+                "fail_real_number": fail_real_number,
+                "create_Time": today12,
+                "actual_bonus": sum_real_coin,
+            }
+            if select_if_result:
+                conn.execute(update(CCheckinResult).where(
+                    CCheckinResult.id == select_if_result['id']
+                ).values(checkin_result))
+            else:
+                ins = insert(CCheckinResult).values(checkin_result)
+                conn.execute(ins)
+
+            # 查询奖池
             select_real_pool = conn.execute(select([CCheckinResult]).where(
-                CCheckinResult.create_Time == today0
+                CCheckinResult.create_Time == today12
             )).fetchone()
             if select_real_pool:
 
@@ -267,7 +305,7 @@ def run():
     server = pipeflow.Server()
     server.add_routine_worker(cash_reward, interval=3, immediately=True)
     server.add_routine_worker(checkin_faker, interval=3, immediately=True)
-    server.add_routine_worker(update_checkin_result, interval=5, immediately=True)
+    # server.add_routine_worker(update_checkin_result, interval=5, immediately=True)
     server.add_routine_worker(checkin_user_reward, interval=59, immediately=True)
     server.run()
 
