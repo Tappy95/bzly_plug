@@ -260,7 +260,9 @@ async def checkin_user_reward():
                 select_all_reall_success_user = conn.execute(select([CCheckinLog]).where(
                     and_(
                         CCheckinLog.user_type == 1,
-                        CCheckinLog.state == 2
+                        CCheckinLog.state == 2,
+                        CCheckinLog.create_time > yesterday12,
+                        CCheckinLog.create_time < today12
                     )
                 )).fetchall()
 
