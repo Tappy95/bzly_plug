@@ -1160,6 +1160,8 @@ async def restart_callback(request):
     for task in tasks:
         # 查询用户ID,并覆盖
         task[user_column] = await select_user_id(connection, task[user_column])
+        if not task[user_column]:
+            continue
         logger.info("user_id:{}".format(task[user_column]))
         # 重新发放奖励及列表
         # 查询金币比列
@@ -1168,7 +1170,7 @@ async def restart_callback(request):
         )
         cur_ctm = await connection.execute(select_coin_to_money)
         rec_ctm = await cur_ctm.fetchone()
-        task_coin = task[user_money_column] * int(rec_ctm['dic_value'])
+        task_coin = float(task[user_money_column]) * int(rec_ctm['dic_value'])
 
         c_result = await cash_exchange(
             connection,
