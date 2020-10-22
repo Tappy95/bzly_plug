@@ -342,7 +342,7 @@ async def get_xwcallback(request):
         )
         cur_ctm = await connection.execute(select_coin_to_money)
         rec_ctm = await cur_ctm.fetchone()
-        task_coin = callback_params['money'] * int(rec_ctm['dic_value'])
+        task_coin = float(callback_params['money']) * int(rec_ctm['dic_value'])
 
         c_result = await cash_exchange(
             connection,
@@ -446,7 +446,7 @@ async def get_ibxcallback(request):
         cur_ctm = await connection.execute(select_coin_to_money)
         rec_ctm = await cur_ctm.fetchone()
         # task_coin = callback_params['user_reward'] * int(rec_ctm['dic_value'])
-        task_coin = callback_params['user_reward']
+        task_coin = float(callback_params['user_reward'])
 
         c_result = await cash_exchange(
             connection,
@@ -552,7 +552,7 @@ async def post_ibxtaskcallback(request):
         cur_ctm = await connection.execute(select_coin_to_money)
         rec_ctm = await cur_ctm.fetchone()
         # task_coin = callback_params['user_reward'] * int(rec_ctm['dic_value'])
-        task_coin = callback_params['user_reward']
+        task_coin = float(callback_params['user_reward'])
 
         c_result = await cash_exchange(
             connection,
