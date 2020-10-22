@@ -42,37 +42,42 @@ async def cash_exchange(connection, user_id, amount, changed_type, reason, remar
             coin_balance = record_cur_coin['coin'] - amount
             if coin_balance <= 0:
                 logger.info("变更金币失败,余额不足")
-        try:
-            # 插入金币变更信息
-            insert_exchange = {
-                "user_id": user_id,
-                "amount": amount,
-                "flow_type": flow_type,
-                "changed_type": changed_type,
-                "changed_time": int(round(time.time() * 1000)),
-                "status": 1,
-                "account_type": 0,
-                "reason": reason,
-                "remarks": remarks,
-                "coin_balance": coin_balance
-            }
-            ins_exange = insert(LCoinChange).values(insert_exchange)
-            await connection.execute(ins_exange)
-            # 更改用户金币
-            update_user_coin = update(MUserInfo).values({
-                "coin": coin_balance
-            }).where(
-                MUserInfo.user_id == user_id
-            )
-            await connection.execute(update_user_coin)
-        except Exception as e:
-            logger.info(e)
-            logger.info("修改金币失败,请联系管理员")
-            return False
+        retry = 3
+        while retry:
+            try:
+                # 插入金币变更信息
+                insert_exchange = {
+                    "user_id": user_id,
+                    "amount": amount,
+                    "flow_type": flow_type,
+                    "changed_type": changed_type,
+                    "changed_time": int(round(time.time() * 1000)),
+                    "status": 1,
+                    "account_type": 0,
+                    "reason": reason,
+                    "remarks": remarks,
+                    "coin_balance": coin_balance
+                }
+                ins_exange = insert(LCoinChange).values(insert_exchange)
+                await connection.execute(ins_exange)
+                # 更改用户金币
+                update_user_coin = update(MUserInfo).values({
+                    "coin": coin_balance
+                }).where(
+                    and_(
+                        MUserInfo.user_id == user_id,
+                        MUserInfo.coin == record_cur_coin['coin']
+                    )
+                )
+                await connection.execute(update_user_coin)
+                return True
+            except Exception as e:
+                logger.info(e)
+                logger.info("修改金币失败,请联系管理员")
+                retry -= 1
+        return False
     else:
         return False
-
-    return True
 
 
 # 裂变任务
