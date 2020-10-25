@@ -5,7 +5,7 @@ import time
 from sqlalchemy import select, update, insert, and_, text, or_
 
 from models.alchemy_models import MUserInfo, MFissionScheme, LCoinChange, TpDyCallback, t_tp_pcdd_callback, \
-    t_tp_xw_callback, t_tp_ibx_callback, TpZbCallback, TpYwCallback, TpJxwCallback, MChannelInfo
+    t_tp_xw_callback, t_tp_ibx_callback, TpZbCallback, TpYwCallback, TpJxwCallback, MChannelInfo, MPartnerInfo
 from util.log import logger
 
 # 金币变更任务
@@ -81,7 +81,7 @@ async def cash_exchange(connection, user_id, amount, changed_type, reason, remar
 
 
 # 裂变任务
-async def fission_schema(connection, aimuser_id, task_coin, is_one=True):
+async def fission_schema(connection, aimuser_id, task_coin, is_one=False):
     # 查询麒麟裂变方案
     select_fission_schema = select([MFissionScheme]).where(
         MFissionScheme.name == "麒麟裂变方案"
@@ -98,7 +98,20 @@ async def fission_schema(connection, aimuser_id, task_coin, is_one=True):
     )
     cursor_aimuser = await connection.execute(select_user_referrer)
     record_aimuser = await cursor_aimuser.fetchone()
-    amount = one_commission / 100 * task_coin if is_one else two_commission / 100 * task_coin
+
+    # 查询上级是否是合伙人,是合伙人.金币不入账,且享受二级收益
+    select_is_partner = select([MPartnerInfo]).where(
+        and_(
+            MPartnerInfo.status == 1,
+            MPartnerInfo.user_id == record_aimuser['referrer']
+        )
+    )
+    cursor_partner = await connection.execute(select_is_partner)
+    record_partner = await cursor_partner.fetchone()
+
+
+
+    amount = one_commission / 100 * task_coin if not is_one else two_commission / 100 * task_coin
     if record_aimuser:
         # 根据上级ID下发徒弟贡献金币变更任务
         await cash_exchange(

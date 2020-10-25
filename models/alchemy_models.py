@@ -2053,3 +2053,14 @@ class TpZbCallback(Base):
     sign = Column(String(128), comment='签名（见签名算法）')
     status = Column(TINYINT(1), comment='1-成功0-失败')
     update_time = Column(DateTime, comment='更新时间')
+
+
+class MPartnerInfo(Base):
+    __tablename__ = 'm_partner_info'
+
+    user_id = Column(String(62), primary_key=True, comment='用户ID')
+    partner_level = Column(TINYINT(2), nullable=False)
+    future_coin = Column(INTEGER(11), nullable=False)
+    enddate = Column(DateTime, nullable=False)
+    update_time = Column(DateTime, nullable=False)
+    status = Column(TINYINT(2), nullable=False)
