@@ -1,3 +1,4 @@
+from datetime import datetime
 from urllib.parse import quote
 
 import aiohttp
@@ -6,10 +7,11 @@ import hashlib
 import time
 
 import requests
-from sqlalchemy import select, create_engine, insert, update
+from sqlalchemy import select, create_engine, update
+from sqlalchemy.dialects.mysql import insert
 
 from config import *
-from models.alchemy_models import LUserExchangeCash, LUserCashLogPY, MUserInfo, LCoinChange, TpGame
+from models.alchemy_models import LUserExchangeCash, LUserCashLogPY, MUserInfo, LCoinChange, TpGame, MUserLeader
 from util.log import logger
 from util.static_methods import serialize
 import pipeflow
@@ -123,6 +125,36 @@ def get_dy_games():
         conn.execute(insert(TpGame).values(results))
 
 
+def get_leader_id(low_user_id, conn):
+    select_low_user = conn.execute(select([MUserInfo]).where(
+        MUserInfo.user_id == low_user_id
+    )).fetchone()
+    if select_low_user and select_low_user['referrer']:
+        return get_leader_id(select_low_user['referrer'], conn)
+    return low_user_id
+
+
+def insert_leader_id():
+    with engine.connect() as conn:
+        select_users = conn.execute(select([MUserInfo])).fetchall()
+        for user in select_users:
+            leader_id = get_leader_id(user['user_id'], conn)
+            leader_info = {
+                "user_id": user['user_id'],
+                "referrer": user['referrer'],
+                "leader_id": leader_id,
+                "update_time": datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+            }
+            ins = insert(MUserLeader)
+            insert_stmt = ins.values(leader_info)
+            on_duplicate_key_stmt = insert_stmt.on_duplicate_key_update(
+                user_id=insert_stmt.inserted.user_id,
+                referrer=insert_stmt.inserted.referrer,
+                leader_id=insert_stmt.inserted.leader_id,
+                update_time=insert_stmt.inserted.update_time
+            )
+            conn.execute(on_duplicate_key_stmt)
+
 
 if __name__ == '__main__':
     # 爱变现
@@ -130,4 +162,4 @@ if __name__ == '__main__':
     # loop.run_until_complete(get_ibx_tasks())
 
     # 多游游戏获取
-    get_dy_games()
+    insert_leader_id()

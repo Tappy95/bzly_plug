@@ -2064,3 +2064,12 @@ class MPartnerInfo(Base):
     enddate = Column(DateTime, nullable=False)
     update_time = Column(DateTime, nullable=False)
     status = Column(TINYINT(2), nullable=False)
+
+
+class MUserLeader(Base):
+    __tablename__ = 'm_user_leader'
+
+    user_id = Column(String(50), primary_key=True, comment='用户ID')
+    referrer = Column(String(50), comment='直属上级ID')
+    leader_id = Column(String(50), nullable=False, comment='最高领导者ID->合伙人身份->m_partner_info')
+    update_time = Column(DateTime, nullable=False, comment='更新时间')
