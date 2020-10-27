@@ -4,6 +4,7 @@ import aioredis
 from aiohttp import web
 
 from app.index import views
+from app.partner import views
 from config import *
 # from sqlalchemy import create_engine
 from aiomysql.sa import create_engine
@@ -88,3 +89,4 @@ app['db_engine'] = create_engine(
 '''
 
 app.add_routes(index.views.routes)
+app.add_routes(partner.views.routes)

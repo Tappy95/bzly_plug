@@ -1365,6 +1365,7 @@ async def get_coinchange(request):
     return web.json_response(json_result)
 
 
+# 安卓获取服务器时间
 @routes.get('/time')
 async def get_time(request):
     timenow = int(time.time())

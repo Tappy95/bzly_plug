@@ -80,8 +80,62 @@ async def cash_exchange(connection, user_id, amount, changed_type, reason, remar
         return False
 
 
+async def cash_exchange_panrtner(connection, partner_info, amount, flow_type=1):
+    # 查询当前用户金币
+    select_user_current_coin = select([MPartnerInfo]).where(
+        MPartnerInfo.user_id == partner_info['user_id']
+    )
+    cursor_cur_coin = await connection.execute(select_user_current_coin)
+    record_cur_coin = await cursor_cur_coin.fetchone()
+    if record_cur_coin:
+
+        # 计算金币余额
+        if flow_type == 1:
+            coin_balance = record_cur_coin['coin'] + amount
+        else:
+            coin_balance = record_cur_coin['coin'] - amount
+            if coin_balance <= 0:
+                logger.info("变更金币失败,余额不足")
+        retry = 3
+        while retry:
+            try:
+                # 插入金币变更信息
+                insert_exchange = {
+                    "user_id": partner_info['user_id'],
+                    "amount": amount,
+                    "flow_type": flow_type,
+                    "changed_type": 5,
+                    "changed_time": int(round(time.time() * 1000)),
+                    "status": 1,
+                    "account_type": 0,
+                    "reason": "下级用户贡献",
+                    "remarks": "合伙人未入账金币",
+                    "coin_balance": coin_balance
+                }
+                ins_exange = insert(LCoinChange).values(insert_exchange)
+                await connection.execute(ins_exange)
+                # 更改用户金币
+                update_user_coin = update(MPartnerInfo).values({
+                    "future_coin": coin_balance
+                }).where(
+                    and_(
+                        MPartnerInfo.user_id == partner_info['user_id'],
+                        MPartnerInfo.future_coin == record_cur_coin['future_coin']
+                    )
+                )
+                await connection.execute(update_user_coin)
+                return True
+            except Exception as e:
+                logger.info(e)
+                logger.info("修改金币失败,请联系管理员")
+                retry -= 1
+        return False
+    else:
+        return False
+
+
 # 裂变任务
-async def fission_schema(connection, aimuser_id, task_coin, is_one=False):
+async def fission_schema(connection, aimuser_id, task_coin, is_one=True):
     # 查询麒麟裂变方案
     select_fission_schema = select([MFissionScheme]).where(
         MFissionScheme.name == "麒麟裂变方案"
@@ -99,31 +153,34 @@ async def fission_schema(connection, aimuser_id, task_coin, is_one=False):
     cursor_aimuser = await connection.execute(select_user_referrer)
     record_aimuser = await cursor_aimuser.fetchone()
 
-    # 查询上级是否是合伙人,是合伙人.金币不入账,且享受二级收益
-    select_is_partner = select([MPartnerInfo]).where(
-        and_(
-            MPartnerInfo.status == 1,
-            MPartnerInfo.user_id == record_aimuser['referrer']
-        )
-    )
-    cursor_partner = await connection.execute(select_is_partner)
-    record_partner = await cursor_partner.fetchone()
+    amount = one_commission / 100 * task_coin if is_one else two_commission / 100 * task_coin
 
-
-
-    amount = one_commission / 100 * task_coin if not is_one else two_commission / 100 * task_coin
     if record_aimuser:
         # 根据上级ID下发徒弟贡献金币变更任务
-        await cash_exchange(
-            connection,
-            user_id=record_aimuser['referrer'],
-            amount=amount,
-            changed_type=5,
-            reason="裂变方案贡献",
-            remarks="徒弟贡献",
-            flow_type=1
+        # 查询上级是否是合伙人,是合伙人.金币不入账,且享受二级收益
+        select_is_partner = select([MPartnerInfo]).where(
+            and_(
+                MPartnerInfo.status == 1,
+                MPartnerInfo.user_id == record_aimuser['referrer']
+            )
         )
-        if is_one:
+        cursor_partner = await connection.execute(select_is_partner)
+        record_partner = await cursor_partner.fetchone()
+        if record_partner:
+            # 上级是合伙人,金币加入合伙人表
+            await cash_exchange_panrtner(connection, record_partner, amount)
+        else:
+            # 上级不是合伙人
+            await cash_exchange(
+                connection,
+                user_id=record_aimuser['referrer'],
+                amount=amount,
+                changed_type=5,
+                reason="裂变方案贡献",
+                remarks="徒弟贡献",
+                flow_type=1
+            )
+        if is_one and record_partner:
             await fission_schema(
                 connection,
                 aimuser_id=record_aimuser['referrer'],

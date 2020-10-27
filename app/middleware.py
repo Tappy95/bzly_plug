@@ -31,25 +31,6 @@ async def db_middleware(request, handler):
 async def redis_middleware(request, handler):
     redis = request.app['redis_engine']
     request['redis_connection'] = redis
-    # if config.PRODUCTION_ENV:
-    #     value = await redis.hgetall('shopee:product:batch_date', encoding='utf-8')
-    #     if len(value) > 1:
-    #         key_list = []
-    #         for key, value in value.items():
-    #             if value == '1':
-    #                 key_list.append(datetime.strptime(key, '%Y-%m-%d'))
-    #         key_time = sorted(key_list)[-1]
-    #         key_time = datetime.strftime(key_time, '%Y-%m-%d')
-    #     elif len(value) == 1:
-    #         key_time = [x for x in value.keys()][0]
-    #         key_time = datetime.strftime(key_time, '%Y-%m-%d')
-    #     else:
-    #         logger.info("Can't get the es_index name")
-    #     request['es_key_time'] = key_time
-    #     request['es_index_name'] = "shopee_product_" + key_time
-    # else:
-    #     request['es_key_time'] = '2020-05-11'
-    #     request['es_index_name'] = "shopee_product_2020-05-11"
 
     return await handler(request)
 

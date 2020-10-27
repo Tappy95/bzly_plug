@@ -2059,11 +2059,14 @@ class MPartnerInfo(Base):
     __tablename__ = 'm_partner_info'
 
     user_id = Column(String(62), primary_key=True, comment='用户ID')
-    partner_level = Column(TINYINT(2), nullable=False)
-    future_coin = Column(INTEGER(11), nullable=False)
-    enddate = Column(DateTime, nullable=False)
-    update_time = Column(DateTime, nullable=False)
-    status = Column(TINYINT(2), nullable=False)
+    partner_level = Column(TINYINT(2), nullable=False, comment='合伙人等级')
+    future_coin = Column(INTEGER(11), nullable=False, comment='未入账金额')
+    enddate = Column(DateTime, nullable=False, comment='到期时间')
+    update_time = Column(DateTime, nullable=False, comment='更新时间')
+    status = Column(TINYINT(2), nullable=False, comment='合伙人是否有效->到期未达标,后台更改')
+    history_invite = Column(INTEGER(11), nullable=False, comment='历史邀请人数')
+    enddate_invite = Column(INTEGER(11), nullable=False, comment='周期内邀请人数')
+    activity_points = Column(INTEGER(11), nullable=False, comment='活跃度')
 
 
 class MUserLeader(Base):
