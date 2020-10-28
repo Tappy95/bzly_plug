@@ -2,7 +2,7 @@ import copy
 import json
 import time
 import traceback
-from datetime import datetime
+from datetime import datetime, timedelta
 from operator import itemgetter
 from urllib.parse import quote
 
@@ -12,12 +12,14 @@ from aiohttp import web
 from sqlalchemy import select, update, and_, text, or_
 from sqlalchemy.dialects.mysql import insert
 
+from libs.snowflake import IdWorker
 from models.alchemy_models import MUserInfo, t_tp_pcdd_callback, PDictionary, t_tp_xw_callback, TpTaskInfo, \
-    t_tp_ibx_callback, TpJxwCallback, TpYwCallback, TpDyCallback, TpZbCallback, LCoinChange, MChannelInfo, MChannel
+    t_tp_ibx_callback, TpJxwCallback, TpYwCallback, TpDyCallback, TpZbCallback, LCoinChange, MChannelInfo, MChannel, \
+    TpVideoCallback
 from task.callback_task import fission_schema, cash_exchange, select_user_id, get_channel_user_ids, get_callback_infos
 from task.check_sign import check_xw_sign, check_ibx_sign, check_jxw_sign, check_yw_sign, check_dy_sign, check_zb_sign
 from util.log import logger
-from util.static_methods import serialize
+from util.static_methods import serialize, get_pdictionary_key, get_video_reward_count
 
 routes = web.RouteTableDef()
 
@@ -1062,6 +1064,79 @@ async def post_zbcallback(request):
         json_result = {"code": 400, "success": "false"}
     return web.json_response(json_result)
 
+
+# 视频广告回调
+@routes.get('/tpvideocallback')
+async def get_current_day_video_reward(request):
+    params = {**request.query}
+    connection = request['db_connection']
+    # 查询用户ID
+    user_id = await select_user_id(connection, params['token'])
+    # 查询视频奖励次数
+    limit_count = await get_pdictionary_key(connection, "video_number")
+    reward_count = await get_video_reward_count(connection, user_id)
+    if reward_count >= int(limit_count):
+        return web.json_response({
+            "code": 403,
+            "message": "今日奖励超限"
+        })
+    # 获取随机订单号
+    worker = IdWorker(1, 2, 0)
+    trans_id = worker.get_id()
+    # 获取单挑视频奖励
+    reward_amount = await get_pdictionary_key(connection, "video_reward")
+    callback_info = {
+        "user_id": user_id,
+        "operate_type": int(params['operate_type']),
+        "trans_id": str(trans_id),
+        "reward_amount": reward_amount,
+        "reward_name": "趣变视频奖励",
+        "creator_time": int(time.time()*1000),
+        "sign": "无需签名",
+        "state": "3",
+        "remarks": "视频奖励回调"
+    }
+    try:
+        await connection.execute(insert(TpVideoCallback).values(callback_info))
+        # 发放视频奖励
+        c_result = await cash_exchange(
+            connection,
+            user_id=user_id,
+            amount=reward_amount,
+            changed_type=30,
+            reason="视频奖励",
+            remarks="趣变视频奖励",
+            flow_type=1
+        )
+        if c_result:
+            update_callback_status = update(TpVideoCallback).values({
+                "state": 1
+            }).where(
+                and_(
+                    TpVideoCallback.user_id == user_id,
+                    TpVideoCallback.trans_id == trans_id
+                )
+            )
+            await connection.execute(update_callback_status)
+        return web.json_response({
+            "code": 200,
+            "message": "成功发放视频奖励"
+        })
+    except Exception as e:
+        logger.info(e)
+        update_callback_status = update(TpVideoCallback).values({
+            "state": 3
+        }).where(
+            and_(
+                TpVideoCallback.user_id == user_id,
+                TpVideoCallback.trans_id == trans_id
+            )
+        )
+        await connection.execute(update_callback_status)
+        return web.json_response({
+            "code": 405,
+            "message": "发放奖励异常,请联系管理员"
+        })
 
 # 回调重发,全平台
 @routes.get('/recallback')

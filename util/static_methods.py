@@ -1,11 +1,13 @@
 import decimal
 import json
+import time
 from datetime import datetime, timedelta
 from operator import itemgetter
 
 from aiohttp import web
 from sqlalchemy import select, and_
 
+from models.alchemy_models import PDictionary, TpVideoCallback
 from util.log import logger
 
 
@@ -183,5 +185,32 @@ def get_page_list(current_page, countent, max_page):
     }
 
 
+# 获取字典值
+async def get_pdictionary_key(connection, pd_name):
+    select_pd = select([PDictionary]).where(
+        PDictionary.dic_name == pd_name
+    )
+    cursor = await connection.execute(select_pd)
+    record = await cursor.fetchone()
+    return record['dic_value']
 
 
+# 获取今日视频奖励次数
+async def get_video_reward_count(connection, user_id):
+    # 获取当前时间
+    now = datetime.now()
+    # 获取今天零点
+    zeroToday = now - timedelta(hours=now.hour, minutes=now.minute, seconds=now.second, microseconds=now.microsecond)
+    # 获取23:59:59
+    lastToday = zeroToday + timedelta(hours=23, minutes=59, seconds=59)
+    zeroTodaytime = time.mktime(zeroToday.timetuple()) * 1000
+    lastTodaytime = time.mktime(lastToday.timetuple()) * 1000
+    select_count_reward = select([TpVideoCallback]).where(
+        and_(
+            TpVideoCallback.creator_time > zeroTodaytime,
+            TpVideoCallback.creator_time < lastTodaytime
+        )
+    )
+    cursor = await connection.execute(select_count_reward)
+    record = await cursor.fetchall()
+    return len(record)
