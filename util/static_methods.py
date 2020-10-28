@@ -74,72 +74,6 @@ def date_front(end_time):
     return dates
 
 
-# 类目树生成
-async def category_tree(connection, site, effect_ids):
-    try:
-        select_category = select([
-            shopee_category.c.category_name,
-            shopee_category.c.level,
-            shopee_category.c.site,
-            shopee_category.c.category_id,
-            shopee_category.c.parent_id,
-            shopee_category.c.category_id_path,
-            shopee_category.c.category_name_path,
-        ]).where(
-            and_(
-                shopee_category.c.level <= 3,
-                shopee_category.c.site == site,
-                shopee_category.c.category_id.in_(effect_ids)
-            )
-        )
-
-        cursor = await connection.execute(select_category)
-        records = await cursor.fetchall()
-    except Exception as e:
-        logger.info(e)
-        raise web.HTTPInternalServerError(text="DB error,Please contact Administrator")
-    # 类目树
-    category_dict = category_list(records)
-
-    return category_dict
-
-
-# 类目树生成器
-def category_list(records):
-    category_dict = [{"firstName": row['category_name'], "show": False, "category_id": row['category_id']}
-                     for row in records if row['level'] == 1]
-
-    for row_1 in category_dict:
-        for row_2 in records:
-            if row_2['parent_id'] == row_1['category_id']:
-                if 'secondTitle' not in row_1:
-                    row_1['secondTitle'] = []
-                list_2 = row_2['category_id_path'].split(':')
-                key_index = list_2.index(row_2['parent_id'])
-                list_name = row_2['category_name_path'].split(':')
-                parentName = str(list_name[key_index])
-                row_1['secondTitle'].append(
-                    {"secondName": row_2['category_name'], "show": False,
-                     "category_id": row_2['category_id'], "parentName": parentName, "parentId": row_2['parent_id']})
-
-    for row_1 in category_dict:
-        for row_2 in row_1['secondTitle']:
-            for row_3 in records:
-                if row_3['parent_id'] == row_2['category_id']:
-                    if 'thirdTitle' not in row_2:
-                        row_2['thirdTitle'] = []
-                    list_3 = row_3['category_id_path'].split(':')
-                    key_index = list_3.index(row_3['parent_id'])
-                    list_name = row_3['category_name_path'].split(':')
-                    parentName = str(list_name[key_index])
-                    row_2['thirdTitle'].append(
-                        {"thirdName": row_3['category_name'], "category_id": row_3['category_id'],
-                         "parentName": parentName, "parentId": row_3['parent_id']
-                         })
-
-    return category_dict
-
-
 # 分页器
 def get_page_list(current_page, countent, max_page):
     """
@@ -193,6 +127,14 @@ async def get_pdictionary_key(connection, pd_name):
     cursor = await connection.execute(select_pd)
     record = await cursor.fetchone()
     return record['dic_value']
+
+
+# 获取字典纸,同步版
+def get_pidic_key(conn, pd_name):
+    select_pd = conn.execute(select([PDictionary]).where(
+        PDictionary.dic_name == pd_name
+    )).fetchone()
+    return select_pd['dic_value']
 
 
 # 获取今日视频奖励次数
