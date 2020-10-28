@@ -5,7 +5,8 @@ import time
 from sqlalchemy import select, update, insert, and_, text, or_
 
 from models.alchemy_models import MUserInfo, MFissionScheme, LCoinChange, TpDyCallback, t_tp_pcdd_callback, \
-    t_tp_xw_callback, t_tp_ibx_callback, TpZbCallback, TpYwCallback, TpJxwCallback, MChannelInfo, MPartnerInfo
+    t_tp_xw_callback, t_tp_ibx_callback, TpZbCallback, TpYwCallback, TpJxwCallback, MChannelInfo, MPartnerInfo, \
+    MUserLeader
 from util.log import logger
 
 # 金币变更任务
@@ -33,6 +34,17 @@ async def cash_exchange(connection, user_id, amount, changed_type, reason, remar
     )
     cursor_cur_coin = await connection.execute(select_user_current_coin)
     record_cur_coin = await cursor_cur_coin.fetchone()
+    select_user_leader = select([MUserLeader]).where(
+        MUserLeader.user_id == user_id
+    )
+    cursor_leader = await connection.execute(select_user_leader)
+    record_leader = await cursor_leader.fetchone()
+    select_user_partner = select([MPartnerInfo]).where(
+        MPartnerInfo.user_id == record_leader['leader_id']
+    )
+    cursor_partner = await connection.execute(select_user_partner)
+    record_partner = await cursor_partner.fetchone()
+    current_activity = record_partner['activity_points'] + 1
     if record_cur_coin:
 
         # 计算金币余额
@@ -70,6 +82,13 @@ async def cash_exchange(connection, user_id, amount, changed_type, reason, remar
                     )
                 )
                 await connection.execute(update_user_coin)
+
+                update_leader_activity = update(MPartnerInfo).values({
+                    "activity_points": current_activity
+                }).where(
+                    MPartnerInfo.user_id == record_leader['leader_id']
+                )
+                await connection.execute(update_leader_activity)
                 return True
             except Exception as e:
                 logger.info(e)
@@ -97,6 +116,7 @@ async def cash_exchange_panrtner(connection, partner_info, amount, flow_type=1):
             if coin_balance <= 0:
                 logger.info("变更金币失败,余额不足")
         retry = 3
+        activity = record_cur_coin['activity_points'] + 1
         while retry:
             try:
                 # 插入金币变更信息
