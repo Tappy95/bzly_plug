@@ -1089,7 +1089,7 @@ async def get_current_day_video_reward(request):
         "user_id": user_id,
         "operate_type": int(params['operate_type']),
         "trans_id": str(trans_id),
-        "reward_amount": reward_amount,
+        "reward_amount": int(reward_amount),
         "reward_name": "趣变视频奖励",
         "creator_time": int(time.time()*1000),
         "sign": "无需签名",
@@ -1102,7 +1102,7 @@ async def get_current_day_video_reward(request):
         c_result = await cash_exchange(
             connection,
             user_id=user_id,
-            amount=reward_amount,
+            amount=int(reward_amount),
             changed_type=30,
             reason="视频奖励",
             remarks="趣变视频奖励",
@@ -1124,6 +1124,7 @@ async def get_current_day_video_reward(request):
         })
     except Exception as e:
         logger.info(e)
+        logger.info(traceback.print_exc())
         update_callback_status = update(TpVideoCallback).values({
             "state": 3
         }).where(
