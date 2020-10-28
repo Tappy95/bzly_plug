@@ -1091,7 +1091,7 @@ async def get_current_day_video_reward(request):
         "trans_id": str(trans_id),
         "reward_amount": int(reward_amount),
         "reward_name": "趣变视频奖励",
-        "creator_time": int(time.time()*1000),
+        "creator_time": int(time.time() * 1000),
         "sign": "无需签名",
         "state": "3",
         "remarks": "视频奖励回调"
@@ -1120,7 +1120,7 @@ async def get_current_day_video_reward(request):
             await connection.execute(update_callback_status)
         return web.json_response({
             "code": 200,
-            "message": "成功发放视频奖励"
+            "message": "+{}金币!".format(int(reward_amount))
         })
     except Exception as e:
         logger.info(e)
@@ -1138,6 +1138,7 @@ async def get_current_day_video_reward(request):
             "code": 405,
             "message": "发放奖励异常,请联系管理员"
         })
+
 
 # 回调重发,全平台
 @routes.get('/recallback')
