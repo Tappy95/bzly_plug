@@ -155,10 +155,10 @@ def insert_new_partner():
         # 遍历leader
         for user in select_leader:
             # 不在合伙人表的
-            if user['id'] not in partner_ids:
+            if user['user_id'] not in partner_ids:
                 # 插入新合伙人,status = 0
                 conn.execute(insert(MPartnerInfo).values({
-                    "user_id": user['id'],
+                    "user_id": user['user_id'],
                     "partner_level": 2,
                     "future_coin": 0,
                     "enddate": (datetime.now() + timedelta(days=7)).strftime('%Y-%m-%d %H:%M:%S'),

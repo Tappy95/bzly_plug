@@ -45,7 +45,8 @@ async def cash_exchange(connection, user_id, amount, changed_type, reason, remar
     )
     cursor_partner = await connection.execute(select_user_partner)
     record_partner = await cursor_partner.fetchone()
-    current_activity = record_partner['activity_points'] + 1
+    if record_partner:
+        current_activity = record_partner['activity_points'] + 1
     if record_cur_coin:
 
         # 计算金币余额
