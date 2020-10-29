@@ -22,9 +22,13 @@ from util.static_methods import serialize
 routes = web.RouteTableDef()
 
 
-# @routes.post('/partner')
-# async def add_partner(request):
-#     r_json = await request.json()
-#     connection = request['db_connection']
-#     user_id = await select_user_id(connection, r_json['token'])
-#
+# 查看当前用户闯关状态->七个关卡状态
+
+# 单任务状态->已赚金币/任务要求赚取总额,已邀请人/任务要求邀请人总数.
+
+# 开启新关卡
+
+# 提交结算任务, 获取三张随机牌
+
+# 提交抽牌结果,完成结算
+
