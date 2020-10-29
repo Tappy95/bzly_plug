@@ -2076,3 +2076,72 @@ class MUserLeader(Base):
     referrer = Column(String(50), comment='直属上级ID')
     leader_id = Column(String(50), nullable=False, comment='最高领导者ID->合伙人身份->m_partner_info')
     update_time = Column(DateTime, nullable=False, comment='更新时间')
+
+
+class MCheckpoint(Base):
+    __tablename__ = 'm_checkpoint'
+    __table_args__ = {'comment': '闯关关卡表'}
+
+    id = Column(INTEGER(10), primary_key=True, comment='id')
+    reward_amount = Column(DECIMAL(8, 2), nullable=False, comment='奖励金额(单位元)')
+    checkpoint_number = Column(INTEGER(5), nullable=False, comment='关卡数')
+    clearance_conditions = Column(INTEGER(2), nullable=False, comment='过关条件:0=指定金币,1=邀请好友')
+    gold_number = Column(BIGINT(20), server_default=text("'0'"), comment='金币数')
+    friends_number = Column(INTEGER(5), server_default=text("'0'"), comment='好友数')
+    friends_checkpoint_number = Column(INTEGER(5), server_default=text("'0'"), comment='好友须完成关数')
+    admin_id = Column(String(50), nullable=False, comment='管理员')
+    create_time = Column(BIGINT(20), nullable=False, comment='创建时间')
+    update_time = Column(BIGINT(20), comment='更新时间')
+    state = Column(INTEGER(2), nullable=False, server_default=text("'0'"), comment='状态:0=关闭,1开启')
+
+
+class MCheckpointIncome(Base):
+    __tablename__ = 'm_checkpoint_income'
+    __table_args__ = {'comment': '用户关卡总收益'}
+
+    id = Column(INTEGER(10), primary_key=True)
+    user_id = Column(String(50), nullable=False, comment='用户')
+    amount = Column(DECIMAL(8, 2), nullable=False, server_default=text("'0.00'"), comment='金额元')
+    create_time = Column(BIGINT(20), nullable=False, comment='创建时间')
+    update_time = Column(BIGINT(20), comment='更新时间')
+
+
+class MCheckpointIncomeChange(Base):
+    __tablename__ = 'm_checkpoint_income_change'
+    __table_args__ = {'comment': '过关收益转到余额'}
+
+    id = Column(INTEGER(10), primary_key=True)
+    user_id = Column(String(50), nullable=False, comment='用户')
+    change_amount = Column(DECIMAL(8, 2), nullable=False, comment='转换金额')
+    create_time = Column(BIGINT(20), nullable=False, comment='创建时间')
+    update_time = Column(BIGINT(20), comment='更新时间')
+
+
+class MCheckpointLog(Base):
+    __tablename__ = 'm_checkpoint_log'
+    __table_args__ = {'comment': '闯关日志'}
+
+    id = Column(INTEGER(10), primary_key=True, comment='id')
+    user_id = Column(String(50), nullable=False, comment='用户')
+    checkpoint_number = Column(INTEGER(5), nullable=False, server_default=text("'0'"), comment='关卡数')
+    clearance_conditions = Column(INTEGER(2), nullable=False, server_default=text("'0'"), comment='过关条件:0=指定金币,1=邀请好友')
+    gold_number = Column(BIGINT(20), server_default=text("'0'"), comment='金币数')
+    friends_number = Column(INTEGER(5), server_default=text("'0'"), comment='好友数')
+    friends_checkpoint_number = Column(INTEGER(5), server_default=text("'0'"), comment='好友须完成关数')
+    state = Column(INTEGER(2), nullable=False, comment='关卡状态:0=开始,1完成')
+    create_time = Column(BIGINT(20), nullable=False, comment='添加时间')
+
+
+class MCheckpointRecord(Base):
+    __tablename__ = 'm_checkpoint_record'
+    __table_args__ = {'comment': '闯关记录表'}
+
+    user_id = Column(String(50), primary_key=True, nullable=False, comment='用户')
+    checkpoint_number = Column(INTEGER(5), primary_key=True, nullable=False, comment='第X关')
+    create_time = Column(BIGINT(20), nullable=False, comment='闯关开始时间')
+    end_time = Column(BIGINT(20), comment='闯关结算时间')
+    current_coin = Column(INTEGER(11), comment='闯关周期内赚取金币数')
+    current_invite = Column(INTEGER(11), comment='闯关周期内邀请人数')
+    current_points = Column(INTEGER(11), comment='闯关周期内下属总闯关数')
+    reward_amount = Column(DECIMAL(8, 2), nullable=False, server_default=text("'0.00'"), comment='过关奖励')
+    state = Column(INTEGER(2), nullable=False, server_default=text("'0'"), comment='关卡状态:0=闯关中,1=已过关')
