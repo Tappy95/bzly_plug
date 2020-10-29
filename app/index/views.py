@@ -16,7 +16,8 @@ from libs.snowflake import IdWorker
 from models.alchemy_models import MUserInfo, t_tp_pcdd_callback, PDictionary, t_tp_xw_callback, TpTaskInfo, \
     t_tp_ibx_callback, TpJxwCallback, TpYwCallback, TpDyCallback, TpZbCallback, LCoinChange, MChannelInfo, MChannel, \
     TpVideoCallback
-from task.callback_task import fission_schema, cash_exchange, select_user_id, get_channel_user_ids, get_callback_infos
+from task.callback_task import fission_schema, cash_exchange, select_user_id, get_channel_user_ids, get_callback_infos, \
+    today_user_sign
 from task.check_sign import check_xw_sign, check_ibx_sign, check_jxw_sign, check_yw_sign, check_dy_sign, check_zb_sign
 from util.log import logger
 from util.static_methods import serialize, get_pdictionary_key, get_video_reward_count
@@ -1098,16 +1099,22 @@ async def get_current_day_video_reward(request):
     }
     try:
         await connection.execute(insert(TpVideoCallback).values(callback_info))
-        # 发放视频奖励
-        c_result = await cash_exchange(
-            connection,
-            user_id=user_id,
-            amount=int(reward_amount),
-            changed_type=30,
-            reason="视频奖励",
-            remarks="趣变视频奖励",
-            flow_type=1
-        )
+        # 每日红包签到,签到不发放视频奖励,只发放签到奖励
+        if params['operate_type'] == '1':
+            c_result = await today_user_sign(connection, user_id)
+            toast = "签到成功"
+        else:
+            # 发放视频奖励
+            toast = "视频奖励"
+            c_result = await cash_exchange(
+                connection,
+                user_id=user_id,
+                amount=int(reward_amount),
+                changed_type=30,
+                reason="视频奖励",
+                remarks="趣变视频奖励",
+                flow_type=1
+            )
         if c_result:
             update_callback_status = update(TpVideoCallback).values({
                 "state": 1
@@ -1118,9 +1125,10 @@ async def get_current_day_video_reward(request):
                 )
             )
             await connection.execute(update_callback_status)
+
         return web.json_response({
             "code": 200,
-            "message": "+{}金币!".format(int(reward_amount))
+            "message": "{}+{}金币!".format(toast, int(reward_amount))
         })
     except Exception as e:
         logger.info(e)

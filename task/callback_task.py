@@ -6,13 +6,14 @@ from sqlalchemy import select, update, insert, and_, text, or_
 
 from models.alchemy_models import MUserInfo, MFissionScheme, LCoinChange, TpDyCallback, t_tp_pcdd_callback, \
     t_tp_xw_callback, t_tp_ibx_callback, TpZbCallback, TpYwCallback, TpJxwCallback, MChannelInfo, MPartnerInfo, \
-    MUserLeader
+    MUserLeader, LUserSign
 from util.log import logger
 
 # 金币变更任务
-from util.static_methods import serialize
+from util.static_methods import serialize, get_pdictionary_key
 
 
+# 流水变更及发放金币
 async def cash_exchange(connection, user_id, amount, changed_type, reason, remarks, flow_type=1):
     """
     :param connection:
@@ -99,6 +100,7 @@ async def cash_exchange(connection, user_id, amount, changed_type, reason, remar
         return False
 
 
+# 合伙人发放未入账金币
 async def cash_exchange_panrtner(connection, partner_info, amount, flow_type=1):
     # 查询当前用户金币
     select_user_current_coin = select([MPartnerInfo]).where(
@@ -467,6 +469,49 @@ async def get_callback_infos(connection, user_ids, platform, params):
 
     return list_info, agg_info
 
+
 # if __name__ == '__main__':
 #     loop = asyncio.get_event_loop()
 #     loop.run_until_complete(get_channel_user_ids())
+
+async def today_user_sign(connection, user_id):
+    # 查询已有签到
+    select_user_sign = select([LUserSign]).where(
+        LUserSign.user_id == user_id
+    )
+    cur_sign = await connection.execute(select_user_sign)
+    rec_sign = await cur_sign.fetchone()
+    sign_coin_from_dic = await get_pdictionary_key(connection, "sign_coin")
+    sign_coin = eval(sign_coin_from_dic)
+    if rec_sign:
+        next_stick_times = rec_sign['stick_times'] + 1
+    else:
+        next_stick_times = 1
+    reward_coin = sign_coin[next_stick_times - 1] if next_stick_times <= len(sign_coin) else 2000
+    # 更新签到表
+    sign_info = {
+        "user_id": user_id,
+        "sign_time": int(time.time() * 1000),
+        "score": 200,
+        "stick_times": next_stick_times,
+        "is_task": 1,
+        "task_coin": reward_coin
+    }
+    if rec_sign:
+        await connection.execute(update(LUserSign).values(sign_info).where(LUserSign.user_id == user_id))
+    else:
+        await connection.execute(insert(LUserSign).values(sign_info))
+    # 发放奖励
+    c_result = await cash_exchange(
+        connection=connection,
+        user_id=user_id,
+        amount=reward_coin,
+        changed_type=29,
+        reason="每日红包奖励",
+        remarks="每日红包签到视频奖励"
+    )
+    if c_result:
+        await connection.execute(update(LUserSign).values({
+            "is_task": 2
+        }).where(LUserSign.user_id == user_id))
+    return True
