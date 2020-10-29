@@ -223,18 +223,45 @@ def update_partner_status():
             # 获取指标
             activity_limit = get_pidic_key(conn, "partner_activity_limit")
             invite_limit = get_pidic_key(conn, "partner_invite_limit")
-            if len(select_activity) >= int(activity_limit) and invite_user >= invite_limit:
-                status = 1
-            else:
-                status = 0
             # 更细合伙人活跃度
             # 更新合伙人状态
+            select_the_partner = conn.execute(
+                select([MPartnerInfo]).where(MPartnerInfo.user_id == partner['user_id'])).fetchone()
+            if select_the_partner['status'] == 1:
+                # 已经成为合伙人.
+                # 到期
+                if enddate >= datetime.now():
+                    if len(select_activity) >= int(activity_limit) \
+                            and invite_user >= invite_limit:
+                        # 任务完成
+                        status = 1
+                    else:
+                        # 任务未完成
+                        status = 0
+                # 未到期
+                else:
+                    status = 1
+            # 原本非合伙人
+            else:
+                if len(select_activity) >= int(activity_limit) \
+                        and invite_user >= invite_limit:
+                    # 任务完成
+                    status = 1
+                else:
+                    # 任务未完成
+                    status = 0
+            if enddate >= datetime.now():
+                nextdate = enddate + timedelta(days=7)
+            else:
+                nextdate = enddate
             conn.execute(update(MPartnerInfo).values(
                 {
                     # 活跃度
                     "activity_points": len(select_activity),
                     # 状态
-                    "status": status
+                    "status": status,
+                    "enddate": enddate,
+                    "update_time": datetime.now()
                 }
             ).where(
                 MPartnerInfo.user_id == partner['user_id']
