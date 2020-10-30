@@ -139,56 +139,59 @@ async def get_single_point(request):
 
 
 # 开启新关卡
-@routes.post('/checkpoint/point')
+@routes.post('/checkpoint')
 async def post_checkpoint_point(request):
     connection = request['db_connection']
-    r_json = await request.json()
+    r_json = await request.post()
+    # r_json['checkpoint_number'] = int(r_json['checkpoint_number'])
     user_id = await select_user_id(connection, r_json['token'])
     print(user_id)
     # 查询当前关数
     select_current_point = select([MCheckpointRecord]).where(
         MCheckpointRecord.user_id == user_id
-    )
+    ).order_by(MCheckpointRecord.checkpoint_number.desc())
     cur_current = await connection.execute(select_current_point)
     rec_current = await cur_current.fetchall()
     # 如果申请开启关数为正确关数,则通过
-    if rec_current:
-        if rec_current[-1]['state'] == 1 and len(rec_current) == r_json['checkpoint_number'] - 1:
-            state = True
-    else:
-        state = True
-    if state == True:
-        # 查询关卡条件
-        select_checkpoint = select([MCheckpoint]).where(
-            MCheckpoint.checkpoint_number == r_json['checkpoint_number']
+    # print(rec_current)
+    # state = False
+    # if rec_current:
+    #     if len(rec_current) == int(r_json['checkpoint_number']) - 1:
+    #         state = True
+    # else:
+    #     state = True
+    # if state == True:
+    # 查询关卡条件
+    select_checkpoint = select([MCheckpoint]).where(
+        MCheckpoint.checkpoint_number == int(r_json['checkpoint_number'])
+    )
+    cur_checkpoint = await connection.execute(select_checkpoint)
+    rec_checkpoint = cur_checkpoint.fetchone()
+    await connection.execute(update(MCheckpointRecord).values({
+        # "user_id": user_id,
+        # "checkpoint_number": r_json['checkpoint_number'],
+        "create_time": int(time.time() * 1000),
+        "end_time": 0,
+        "current_coin": 0,
+        "current_invite": 0,
+        "current_points": 0,
+        "reward_amount": 0,
+        "state": 1
+    }).where(
+        and_(
+            MCheckpointRecord.user_id == user_id,
+            MCheckpointRecord.checkpoint_number == int(r_json['checkpoint_number'])
         )
-        cur_checkpoint = await connection.execute(select_checkpoint)
-        rec_checkpoint = cur_checkpoint.fetchone()
-        await connection.execute(update(MCheckpointRecord).values({
-            # "user_id": user_id,
-            # "checkpoint_number": r_json['checkpoint_number'],
-            "create_time": int(time.time() * 1000),
-            "end_time": 0,
-            "current_coin": 0,
-            "current_invite": 0,
-            "current_points": 0,
-            "reward_amount": 0,
-            "state": 1
-        }).where(
-            and_(
-                MCheckpointRecord.user_id == user_id,
-                MCheckpointRecord.checkpoint_number == r_json['checkpoint_number']
-            )
-        ))
-        return web.json_response({
-            "code": 200,
-            "message": "开启闯关成功"
-        })
-    else:
-        return web.json_response({
-            "code": 402,
-            "message": "闯关开启异常"
-        })
+    ))
+    return web.json_response({
+        "code": 200,
+        "message": "开启闯关成功"
+    })
+# else:
+#     return web.json_response({
+#         "code": 402,
+#         "message": "闯关开启异常"
+#     })
 
 
 # 提交结算任务, 获取三张随机牌
