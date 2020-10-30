@@ -15,7 +15,7 @@ from sqlalchemy.dialects.mysql import insert
 
 from models.alchemy_models import MUserInfo, t_tp_pcdd_callback, PDictionary, t_tp_xw_callback, TpTaskInfo, \
     t_tp_ibx_callback, TpJxwCallback, TpYwCallback, TpDyCallback, TpZbCallback, LCoinChange, MChannelInfo, MChannel, \
-    MCheckpointRecord, MCheckpoint
+    MCheckpointRecord, MCheckpoint, MCheckpointIncome
 from task.callback_task import fission_schema, cash_exchange, select_user_id, get_channel_user_ids, get_callback_infos
 from task.check_sign import check_xw_sign, check_ibx_sign, check_jxw_sign, check_yw_sign, check_dy_sign, check_zb_sign
 from util.log import logger
@@ -36,25 +36,41 @@ async def get_checkpoint(request):
     )
     cur = await connection.execute(select_user_point)
     rec = await cur.fetchall()
+    # 查询关卡具体指标
+    select_checkpoint = select([MCheckpoint])
+    cur_point = await connection.execute(select_checkpoint)
+    rec_point = await cur_point.fetchall()
     list_info = []
 
     if rec:
         for record in rec:
-            result = {
-                "checkpoint_number": record['checkpoint_number'],
-                "current_coin": float(record['current_coin']),
-                "current_invite": record['current_invite'],
-                "current_points": record['current_points'],
-                "create_time": record['create_time'],
-                "endtime": record['end_time'],
-                "reward_amount": float(record['reward_amount']),
-                "state": record['state']
-            }
-            list_info.append(result)
+            for point in rec_point:
+                if record['checkpoint_number'] == point['checkpoint_number']:
+                    result = {
+                        "checkpoint_number": record['checkpoint_number'],
+                        "current_coin": record['current_coin'],
+                        "gold_number": point['gold_number'],
+                        "current_invite": record['current_invite'],
+                        "friends_number": point['friends_number'],
+                        "current_points": record['current_points'],
+                        "friends_checkpoint_number": point['friends_checkpoint_number'],
+                        "create_time": record['create_time'],
+                        "end_time": record['end_time'],
+                        "reward_amount": float(record['reward_amount']),
+                        "state": record['state']
+                    }
+                    list_info.append(result)
+    select_income = select([MCheckpointIncome]).where(
+        MCheckpointIncome.user_id == user_id
+    )
+    cur_income = await connection.execute(select_income)
+    rec_income = await cur_income.fetchall()
+    current_amount = sum([float(income['amount']) for income in rec_income]) if rec_income else 0
     json_result = {
         "code": 200,
         "message": "success",
-        "data": list_info
+        "data": list_info,
+        "amount":current_amount
     }
     return web.json_response(json_result)
 
@@ -235,6 +251,13 @@ async def post_checkpoint_card(request):
             MCheckpointRecord.reward_amount == 0
         )
     ))
+    # 插入闯关解锁金额表
+    await connection.execute(insert(MCheckpointIncome).values({
+        "user_id": user_id,
+        "amount": r_json['card_reward'],
+        "create_time": int(time.time() * 1000),
+        "update_time": int(time.time() * 1000),
+    }))
     json_result = {
         "code": 200,
         "message": "success"
