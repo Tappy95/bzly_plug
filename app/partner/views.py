@@ -15,7 +15,7 @@ from sqlalchemy.dialects.mysql import insert
 
 from models.alchemy_models import MUserInfo, t_tp_pcdd_callback, PDictionary, t_tp_xw_callback, TpTaskInfo, \
     t_tp_ibx_callback, TpJxwCallback, TpYwCallback, TpDyCallback, TpZbCallback, LCoinChange, MChannelInfo, MChannel, \
-    MCheckpointRecord, MCheckpoint, MCheckpointIncome
+    MCheckpointRecord, MCheckpoint, MCheckpointIncome, MCheckpointIncomeChange
 from task.callback_task import fission_schema, cash_exchange, select_user_id, get_channel_user_ids, get_callback_infos
 from task.check_sign import check_xw_sign, check_ibx_sign, check_jxw_sign, check_yw_sign, check_dy_sign, check_zb_sign
 from util.log import logger
@@ -66,6 +66,7 @@ async def get_checkpoint(request):
             "friends_checkpoint_number": rec_point['friends_checkpoint_number'],
             "create_time": rec['create_time'] if rec else int(time.time() * 1000),
             "end_time": rec['end_time'] if rec else 0,
+            "task_info": "任务要求预留字段",
             "reward_amount": int(rec['reward_amount']) if rec else 0,
             "state": rec['state'] if rec else 0
         }
@@ -187,6 +188,8 @@ async def post_checkpoint_point(request):
         "code": 200,
         "message": "开启闯关成功"
     })
+
+
 # else:
 #     return web.json_response({
 #         "code": 402,
@@ -310,13 +313,37 @@ async def post_checkpoint_card(request):
 
 
 # 提交导入到钱包的金额
-@routes.get('/checkpoint/cash')
+@routes.post('/checkpoint/cash')
 async def get_reward(request):
-    params = {**request.query}
-    connection = request['db_conneciton']
+    params = await request.post()
+    cash = int(params['cash'])
+    connection = request['db_connection']
     user_id = await select_user_id(connection, params['token'])
-    #
-
+    # 查询金额表,确定余额可用
+    select_income = select([MCheckpointIncome]).where(
+        MCheckpointIncome.user_id == user_id
+    )
+    cur = await connection.execute(select_income)
+    rec = await cur.fetchall()
+    sum_cash = sum([i['amount'] for i in rec])
+    if sum_cash < cash:
+        return web.json_response({
+            "code": 400,
+            "message": "解锁金额不足"
+        })
     # 插入金额转换表
-
+    await connection.execute(insert(MCheckpointIncomeChange).values(
+        {
+            "user_id": user_id,
+            "change_amount": int(cash),
+            "create_time": int(time.time() * 1000),
+            "update_time": int(time.time() * 1000),
+        }
+    ))
     # 调用发币方法
+    await cash_exchange(connection, user_id, int(cash) * 10000, 12, "闯关奖励导入", "闯关获取解锁金额")
+
+    return web.json_response({
+        "code": 200,
+        "message": "success"
+    })
