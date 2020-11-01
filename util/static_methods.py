@@ -5,9 +5,9 @@ from datetime import datetime, timedelta
 from operator import itemgetter
 
 from aiohttp import web
-from sqlalchemy import select, and_
+from sqlalchemy import select, and_, update
 
-from models.alchemy_models import PDictionary, TpVideoCallback
+from models.alchemy_models import PDictionary, TpVideoCallback, MUserLeader
 from util.log import logger
 
 
@@ -150,9 +150,32 @@ async def get_video_reward_count(connection, user_id):
     select_count_reward = select([TpVideoCallback]).where(
         and_(
             TpVideoCallback.creator_time > zeroTodaytime,
-            TpVideoCallback.creator_time < lastTodaytime
+            TpVideoCallback.creator_time < lastTodaytime,
+            TpVideoCallback.user_id == user_id
         )
     )
     cursor = await connection.execute(select_count_reward)
     record = await cursor.fetchall()
     return len(record)
+
+
+def update_leader_id(connection, referrer_id, leader_id):
+    print("update leader->referrer:{}, leader:{}".format(referrer_id, leader_id))
+    # 递归更新leader_id->断开分支
+    select_low_user = connection.execute(select([MUserLeader]).where(
+        and_(
+            MUserLeader.referrer == referrer_id,
+            MUserLeader.user_id != referrer_id,
+            MUserLeader.leader_id != leader_id
+        )
+    )).fetchall()
+    if select_low_user:
+        for low_user in select_low_user:
+            connection.execute(update(MUserLeader).values({
+                "leader_id": leader_id
+            }).where(
+                MUserLeader.user_id == low_user['user_id']
+            ))
+            return update_leader_id(connection, low_user['user_id'], leader_id)
+    else:
+        return True

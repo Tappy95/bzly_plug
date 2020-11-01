@@ -2145,3 +2145,13 @@ class MCheckpointRecord(Base):
     current_points = Column(INTEGER(11), comment='闯关周期内下属总闯关数')
     reward_amount = Column(DECIMAL(8, 2), nullable=False, server_default=text("'0.00'"), comment='过关奖励')
     state = Column(INTEGER(2), nullable=False, server_default=text("'0'"), comment='关卡状态:0=闯关中,1=已过关')
+
+
+class LLeaderChange(Base):
+    __tablename__ = 'l_leader_change'
+
+    leader_id = Column(String(32), primary_key=True, nullable=False, comment='团队领导人')
+    create_time = Column(DateTime, primary_key=True, nullable=False, comment='当日时间')
+    total_reward = Column(INTEGER(11), comment='当日总收益')
+    active_user = Column(INTEGER(11), comment='活跃人数')
+    update_time = Column(DateTime)

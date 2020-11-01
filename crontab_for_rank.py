@@ -4,10 +4,12 @@ import time
 from apscheduler.schedulers.blocking import BlockingScheduler
 from datetime import datetime, timedelta
 
-from sqlalchemy import create_engine, select, and_, update, insert
+from sqlalchemy import create_engine, select, and_, update
+from sqlalchemy.dialects.mysql import insert
+
 from config import *
-from models.alchemy_models import LRankMachine, LRankCoin, MPartnerInfo, MUserLeader, LCoinChange
-from util.static_methods import serialize, get_pidic_key
+from models.alchemy_models import LRankMachine, LRankCoin, MPartnerInfo, MUserLeader, LCoinChange, LLeaderChange
+from util.static_methods import serialize, get_pidic_key, update_leader_id
 
 engine = create_engine(
     SQLALCHEMY_DATABASE_URI,
@@ -110,7 +112,7 @@ def update_enddate_invite():
     print("Done the update invite users info task")
 
 
-# TODO: 更新周期内活跃度
+# 更新周期内活跃度,流水
 def update_activity():
     # 遍历合伙人
     with engine.connect() as conn:
@@ -141,6 +143,29 @@ def update_activity():
             ).where(
                 MPartnerInfo.user_id == partner['user_id']
             ))
+
+            now = datetime.now()
+            change_info = {
+                "leader_id": partner['user_id'],
+                "create_time": now - timedelta(hours=now.hour, minutes=now.minute, seconds=now.second,
+                                               microseconds=now.microsecond),
+                "total_reward": sum([change['amount'] for change in select_activity if change['flow_type'] == 1 and (
+                        change['changed_type'] == 35 or change['changed_type'] == 36)]),
+                "active_user": len([change['user_id'] for change in select_activity if change['flow_type'] == 1 and (
+                        change['changed_type'] == 35 or change['changed_type'] == 36)]),
+                "update_time": now
+            }
+            # 更新当日汇总表
+            ins = insert(LLeaderChange)
+            insert_stmt = ins.values(change_info)
+            on_duplicate_key_stmt = insert_stmt.on_duplicate_key_update(
+                leader_id=insert_stmt.inserted.leader_id,
+                create_time=insert_stmt.inserted.create_time,
+                total_reward=insert_stmt.inserted.total_reward,
+                active_user=insert_stmt.inserted.active_user,
+                update_time=insert_stmt.inserted.update_time
+            )
+            conn.execute(on_duplicate_key_stmt)
     print("Done update activity")
 
 
@@ -169,6 +194,19 @@ def insert_new_partner():
                     "enddate_invite": 0,
                 }))
     print("Done insert new partner")
+
+
+# # 遍历合伙人,更新leader表->断开合伙人分支
+def update_leader():
+    print("wake up update_leader")
+    with engine.connect() as conn:
+        select_partner = conn.execute(select([MPartnerInfo])).fetchall()
+        for partner in select_partner:
+            # 有效合伙人
+            if partner['status'] == 1:
+                # 查询有效合伙人在leader表的下级
+                update_leader_id(conn, partner['user_id'], partner['user_id'])
+    print("done update leaders")
 
 
 # 合伙人周期结算
@@ -272,12 +310,13 @@ def update_partner_status():
 
 if __name__ == '__main__':
     scheduler = BlockingScheduler()
-    # scheduler.add_job(my_clock, "cron", hour='21', minute='48')
     scheduler.add_job(update_rank_user, "interval", minutes=60)
     scheduler.add_job(update_enddate_invite, "interval", minutes=10)
     scheduler.add_job(insert_new_partner, "interval", minutes=5)
     scheduler.add_job(update_activity, "interval", minutes=20)
     scheduler.add_job(update_partner_status, "interval", hours=4)
+    scheduler.add_job(update_leader, "interval", hours=4)
+    # scheduler.add_job(update_activity, "interval", seconds=2)
     # scheduler.add_job(update_enddate_invite, "interval", seconds=2)
     # scheduler.add_job(my_clock, "cron", hour='21', minute='48')
     scheduler.start()

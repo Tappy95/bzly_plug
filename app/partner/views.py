@@ -15,7 +15,7 @@ from sqlalchemy.dialects.mysql import insert
 
 from models.alchemy_models import MUserInfo, t_tp_pcdd_callback, PDictionary, t_tp_xw_callback, TpTaskInfo, \
     t_tp_ibx_callback, TpJxwCallback, TpYwCallback, TpDyCallback, TpZbCallback, LCoinChange, MChannelInfo, MChannel, \
-    MCheckpointRecord, MCheckpoint, MCheckpointIncome, MCheckpointIncomeChange
+    MCheckpointRecord, MCheckpoint, MCheckpointIncome, MCheckpointIncomeChange, MUserLeader, LLeaderChange
 from task.callback_task import fission_schema, cash_exchange, select_user_id, get_channel_user_ids, get_callback_infos
 from task.check_sign import check_xw_sign, check_ibx_sign, check_jxw_sign, check_yw_sign, check_dy_sign, check_zb_sign
 from util.log import logger
@@ -347,3 +347,104 @@ async def get_reward(request):
         "code": 200,
         "message": "success"
     })
+
+
+@routes.get('/partner/reward_detail')
+async def get_partner_reward_detail(request):
+    token = request.query.get('token')
+    connection = request['db_connection']
+    user_id = await select_user_id(connection, token)
+    # 查团队ids
+    select_team_ids = select([MUserLeader]).where(
+        and_(
+            MUserLeader.leader_id == user_id,
+            MUserLeader.user_id != user_id
+        )
+    )
+    cur = await connection.execute(select_team_ids)
+    rec = await cur.fetchall()
+    team_ids = [user['user_id'] for user in rec]
+
+    # 查流水
+    if team_ids:
+        select_change = select([LCoinChange]).where(
+            and_(
+                LCoinChange.user_id.in_(team_ids),
+                LCoinChange.flow_type == 1,
+                or_(
+                    LCoinChange.changed_type == 35,  # 一级直属用户
+                    LCoinChange.changed_type == 36  # 二级直属用户
+                )
+            )
+        )
+        cur_change = await connection.execute(select_change)
+        rec_change = await cur_change.fetchall()
+        teamBenefit = sum([change['amount'] for change in rec_change])
+    json_result = {
+        "data": {
+            "reward": 1,
+            "teamBenefit": teamBenefit if team_ids else 0,  # 我的团队总收益->金币
+            "directProfit": 3,
+            "drReward": teamBenefit if team_ids else 0,  # 团队详情->收益->金币
+            "ordinaryProfit": 5,
+            "directPeopleNum": 6,
+            "highVipAmount": 7,
+            "indirectPeopleNum": 8,
+            "additionalProfit": 9,
+            "ordinaryPeopleNum": 10,
+            "isiIndirectProfit": 12,
+            "highVipCount": 13,
+            "indirectProfit": 14,
+            "drPeopleNum": len(team_ids) if team_ids else 0  # 团队详情->人数
+        },
+        "message": "操作成功",
+        "statusCode": "2000",
+        "token": token
+    }
+    return web.json_response(json_result)
+
+
+@routes.get('/partner/partner_detail')
+async def get_partner_reward_detail(request):
+    token = request.query.get('token')
+    connection = request['db_connection']
+    user_id = await select_user_id(connection, token)
+    # 查询团队流水
+    select_team = select([LLeaderChange]).where(
+        LLeaderChange.leader_id == user_id
+    )
+    cur = await connection.execute(select_team)
+    rec = await cur.fetchone()
+    json_result = {
+        "data": {
+            "lastPage": 0,
+            "navigatepageNums": [],
+            "startRow": 0,
+            "hasNextPage": False,
+            "prePage": 0,
+            "nextPage": 0,
+            "endRow": 0,
+            "pageSize": 50,
+            "list": [{
+                "drReward": '10000',
+                "drPeopleNum": '20000',
+                "updateTime": rec['create_time'].strftime('%Y-%m-%d') if rec else '2000-01-01',
+                "apprenticeCount": rec['active_user'] if rec else 0,
+                "firstReward": 0,
+                "secondReward": 0,
+                "total": rec['total_reward'] / 10000 if rec else 0,
+                "per": '0'
+            }],
+            "pageNum": 1,
+            "navigatePages": 8,
+            "navigateFirstPage": 0,
+            "total": 2000,
+            "pages": 0,
+            "firstPage": 0,
+            "size": 0,
+            "isLastPage": True, "hasPreviousPage": False, "navigateLastPage": 0, "isFirstPage": True
+        },
+        "message": "操作成功",
+        "statusCode": "2000",
+        "token": token}
+    return web.json_response(json_result)

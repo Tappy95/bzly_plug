@@ -24,6 +24,7 @@ async def cash_exchange(connection, user_id, amount, changed_type, reason, remar
     9-新人注册奖励10任务11出题12兑换闯关奖励 13-阅读资讯14-提现退回15直属用户返利 16-团队长赠送17间接用户返利18居间返利
     19-阅读广告奖励 20-分享资讯 21-签到赚 22-大众团队长分佣 23-快速赚任务 24-达人首次奖励 25-达人后续奖励 26-阅读小说
     27 达人邀请周榜奖励 28-高额赚提成 29 每日红包任务 30观看视频 31 小游戏奖励 32打卡消耗33打卡奖励 34 金币排行日榜奖励
+    35 合伙人一级直属用户贡献 36 合伙人二级直属用户贡献
     :param remarks: 标识信息
     :param reason: 理由
     :return:
@@ -101,62 +102,6 @@ async def cash_exchange(connection, user_id, amount, changed_type, reason, remar
         return False
 
 
-# 合伙人发放未入账金币
-async def cash_exchange_panrtner(connection, partner_info, amount, flow_type=1):
-    # 查询当前用户金币
-    select_user_current_coin = select([MPartnerInfo]).where(
-        MPartnerInfo.user_id == partner_info['user_id']
-    )
-    cursor_cur_coin = await connection.execute(select_user_current_coin)
-    record_cur_coin = await cursor_cur_coin.fetchone()
-    if record_cur_coin:
-
-        # 计算金币余额
-        if flow_type == 1:
-            coin_balance = record_cur_coin['coin'] + amount
-        else:
-            coin_balance = record_cur_coin['coin'] - amount
-            if coin_balance <= 0:
-                logger.info("变更金币失败,余额不足")
-        retry = 3
-        activity = record_cur_coin['activity_points'] + 1
-        while retry:
-            try:
-                # 插入金币变更信息
-                insert_exchange = {
-                    "user_id": partner_info['user_id'],
-                    "amount": amount,
-                    "flow_type": flow_type,
-                    "changed_type": 5,
-                    "changed_time": int(round(time.time() * 1000)),
-                    "status": 1,
-                    "account_type": 0,
-                    "reason": "下级用户贡献",
-                    "remarks": "合伙人未入账金币",
-                    "coin_balance": coin_balance
-                }
-                ins_exange = insert(LCoinChange).values(insert_exchange)
-                await connection.execute(ins_exange)
-                # 更改用户金币
-                update_user_coin = update(MPartnerInfo).values({
-                    "future_coin": coin_balance
-                }).where(
-                    and_(
-                        MPartnerInfo.user_id == partner_info['user_id'],
-                        MPartnerInfo.future_coin == record_cur_coin['future_coin']
-                    )
-                )
-                await connection.execute(update_user_coin)
-                return True
-            except Exception as e:
-                logger.info(e)
-                logger.info("修改金币失败,请联系管理员")
-                retry -= 1
-        return False
-    else:
-        return False
-
-
 # 裂变任务
 async def fission_schema(connection, aimuser_id, task_coin, is_one=True):
     # 查询麒麟裂变方案
@@ -191,7 +136,7 @@ async def fission_schema(connection, aimuser_id, task_coin, is_one=True):
         record_partner = await cursor_partner.fetchone()
         if record_partner:
             # 上级是合伙人,金币加入合伙人表
-            await cash_exchange_panrtner(connection, record_partner, amount)
+            await cash_exchange_panrtner(connection, record_partner, amount, 1, is_one)
         else:
             # 上级不是合伙人
             await cash_exchange(
@@ -212,6 +157,62 @@ async def fission_schema(connection, aimuser_id, task_coin, is_one=True):
             )
 
     return True
+
+
+# 合伙人发放未入账金币
+async def cash_exchange_panrtner(connection, partner_info, amount, flow_type=1, is_one=True):
+    # 查询当前用户金币
+    select_user_current_coin = select([MPartnerInfo]).where(
+        MPartnerInfo.user_id == partner_info['user_id']
+    )
+    cursor_cur_coin = await connection.execute(select_user_current_coin)
+    record_cur_coin = await cursor_cur_coin.fetchone()
+    if record_cur_coin:
+
+        # 计算金币余额
+        if flow_type == 1:
+            coin_balance = record_cur_coin['coin'] + amount
+        else:
+            coin_balance = record_cur_coin['coin'] - amount
+            if coin_balance <= 0:
+                logger.info("变更金币失败,余额不足")
+        retry = 3
+        activity = record_cur_coin['activity_points'] + 1
+        while retry:
+            try:
+                # 插入金币变更信息
+                insert_exchange = {
+                    "user_id": partner_info['user_id'],
+                    "amount": amount,
+                    "flow_type": flow_type,
+                    "changed_type": 35 if is_one else 36,
+                    "changed_time": int(round(time.time() * 1000)),
+                    "status": 1,
+                    "account_type": 0,
+                    "reason": "下级用户贡献",
+                    "remarks": "合伙人未入账金币",
+                    "coin_balance": coin_balance
+                }
+                ins_exange = insert(LCoinChange).values(insert_exchange)
+                await connection.execute(ins_exange)
+                # 更改用户金币
+                update_user_coin = update(MPartnerInfo).values({
+                    "future_coin": coin_balance
+                }).where(
+                    and_(
+                        MPartnerInfo.user_id == partner_info['user_id'],
+                        MPartnerInfo.future_coin == record_cur_coin['future_coin']
+                    )
+                )
+                await connection.execute(update_user_coin)
+                return True
+            except Exception as e:
+                logger.info(e)
+                logger.info("修改金币失败,请联系管理员")
+                retry -= 1
+        return False
+    else:
+        return False
 
 
 # 查询用户ID
