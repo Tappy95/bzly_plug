@@ -27,6 +27,7 @@ routes = web.RouteTableDef()
 # 查看当前用户闯关状态->当前关卡状态
 @routes.get('/checkpoint')
 async def get_checkpoint(request):
+    logger.info({**request.query})
     connection = request['db_connection']
     # 获取user_id
     user_id = await select_user_id(connection, request.query.get('token'))
@@ -70,20 +71,6 @@ async def get_checkpoint(request):
             "reward_amount": int(rec['reward_amount']) if rec else 0,
             "state": rec['state'] if rec else 0
         }
-    # rec = serialize(cur, rec)
-    # print(rec)
-    # if rec:
-    #     for record in rec:
-    #         for info in list_info:
-    #             if record['checkpoint_number'] == info['checkpoint_number']:
-    #                 info["current_coin"] = record['current_coin']
-    #                 info["current_invite"] = record['current_invite']
-    #                 info["current_points"] = record['current_points']
-    #                 info["create_time"] = record['create_time']
-    #                 info["end_time"] = record['end_time']
-    #                 info["reward_amount"] = int(record['reward_amount'])
-    #                 info["state"] = record['state']
-    #         print(list_info)
     select_income = select([MCheckpointIncome]).where(
         MCheckpointIncome.user_id == user_id
     )
@@ -96,6 +83,7 @@ async def get_checkpoint(request):
         "data": result,
         "amount": current_amount
     }
+    logger.info(json_result)
     return web.json_response(json_result)
 
 
@@ -144,6 +132,7 @@ async def get_single_point(request):
 async def post_checkpoint_point(request):
     connection = request['db_connection']
     r_json = await request.post()
+    logger.info(r_json)
     # r_json['checkpoint_number'] = int(r_json['checkpoint_number'])
     user_id = await select_user_id(connection, r_json['token'])
     print(user_id)
@@ -168,9 +157,9 @@ async def post_checkpoint_point(request):
     )
     cur_checkpoint = await connection.execute(select_checkpoint)
     rec_checkpoint = cur_checkpoint.fetchone()
-    await connection.execute(update(MCheckpointRecord).values({
-        # "user_id": user_id,
-        # "checkpoint_number": r_json['checkpoint_number'],
+    record_info = {
+        "user_id": user_id,
+        "checkpoint_number": r_json['checkpoint_number'],
         "create_time": int(time.time() * 1000),
         "end_time": 0,
         "current_coin": 0,
@@ -178,12 +167,21 @@ async def post_checkpoint_point(request):
         "current_points": 0,
         "reward_amount": 0,
         "state": 1
-    }).where(
-        and_(
-            MCheckpointRecord.user_id == user_id,
-            MCheckpointRecord.checkpoint_number == int(r_json['checkpoint_number'])
-        )
-    ))
+    }
+    ins = insert(MCheckpointRecord)
+    insert_stmt = ins.values(record_info)
+    on_duplicate_key_stmt = insert_stmt.on_duplicate_key_update(
+        user_id=insert_stmt.inserted.user_id,
+        checkpoint_number=insert_stmt.inserted.checkpoint_number,
+        create_time=insert_stmt.inserted.create_time,
+        end_time=insert_stmt.inserted.end_time,
+        current_coin=insert_stmt.inserted.current_coin,
+        current_invite=insert_stmt.inserted.current_invite,
+        current_points=insert_stmt.inserted.current_points,
+        reward_amount=insert_stmt.inserted.reward_amount,
+        state=insert_stmt.inserted.state
+    )
+    await connection.execute(on_duplicate_key_stmt)
     return web.json_response({
         "code": 200,
         "message": "开启闯关成功"
@@ -257,7 +255,7 @@ async def get_card(request):
 # 提交抽牌结果,完成结算
 @routes.post('/checkpoint/card')
 async def post_checkpoint_card(request):
-    r_json = await request.json()
+    r_json = await request.post()
     connection = request['db_connection']
     user_id = await select_user_id(connection, r_json['token'])
     select_exist_record = select([MCheckpointRecord]).where(
@@ -268,15 +266,30 @@ async def post_checkpoint_card(request):
     )
     cur = await connection.execute(select_exist_record)
     rec = await cur.fetchone()
-    if rec['state'] == 1:
+    if rec['state'] == 2:
         return web.json_response({
             "code": 402,
             "message": "奖励已发"
         })
+
+    # 查询闯关指标,判断指标
+    select_check = select([MCheckpoint]).where(
+        MCheckpoint.checkpoint_number == r_json['checkpoint_number']
+    )
+    cur_check = await connection.execute(select_check)
+    rec_check = await cur_check.fetchone()
+    if rec['current_coin'] < rec_check['gold_number'] or \
+            rec['current_invite'] < rec_check['friends_number'] or \
+            rec['current_points'] < rec_check['friends_checkpoint_number']:
+        return web.json_response({
+            "code": 402,
+            "message": "任务条件未达成"
+        })
+
     result_value = {
         "end_time": int(time.time() * 1000),
-        "reward_amount": r_json['card_reward'],
-        "state": 1
+        "reward_amount": rec_check['reward_amount'],
+        "state": 2
     }
     await connection.execute(update(MCheckpointRecord).values(result_value).where(
         and_(
