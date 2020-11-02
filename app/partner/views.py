@@ -493,3 +493,10 @@ async def get_partner_reward_detail(request):
         "statusCode": "2000",
         "token": token}
     return web.json_response(json_result)
+
+
+@routes.get('/partner/boost')
+async def get_boost(request):
+    params = {**request.query}
+    connection = request['db_connection']
+    user_id = await select_user_id(connection,params['token'])

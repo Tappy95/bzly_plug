@@ -8,7 +8,8 @@ from sqlalchemy import create_engine, select, and_, update
 from sqlalchemy.dialects.mysql import insert
 
 from config import *
-from models.alchemy_models import LRankMachine, LRankCoin, MPartnerInfo, MUserLeader, LCoinChange, LLeaderChange
+from models.alchemy_models import LRankMachine, LRankCoin, MPartnerInfo, MUserLeader, LCoinChange, LLeaderChange, \
+    MCheckpointRecord, MUserInfo
 from util.static_methods import serialize, get_pidic_key, update_leader_id
 
 engine = create_engine(
@@ -308,6 +309,61 @@ def update_partner_status():
     print("Done update partner status")
 
 
+# 闯关实时统计
+def update_checkpoint_record():
+    print("wake up update checkpoint record")
+    # 遍历闯关表.去除所有状态为1的正在进行闯关行数据:
+    with engine.connect() as conn:
+        select_record = conn.execute(select([MCheckpointRecord]).where(
+            MCheckpointRecord.state == 1
+        )).fetchall
+        for user in select_record:
+            # 查询用户时间段内的金币收益
+            select_change = conn.execute(select([LCoinChange]).where(
+                and_(
+                    LCoinChange.user_id == user['user_id'],
+                    LCoinChange.flow_type == 1,
+                    LCoinChange.changed_time > user['create_time'],
+                    LCoinChange.changed_time < int(time.time() * 1000)
+                )
+            )).fetchall
+            current_coin = sum([change['amount'] for change in select_change])
+
+            # 查询用户时间段内的邀请人数
+            select_invite = conn.execute(select([MUserInfo]).where(
+                and_(
+                    MUserInfo.referrer == user['user_id'],
+                    MUserInfo.recommended_time > user['create_time'],
+                    MUserInfo.recommended_time < int(time.time() * 1000)
+                )
+            )).fetchall()
+            students_ids = [student['user_id'] for student in select_invite]
+            current_invite = len(select_invite)
+
+            # 查询用户时间段内的徒弟闯关数
+            select_student_record = conn.execute(select([MCheckpointRecord]).where(
+                and_(
+                    MCheckpointRecord.user_id.in_(students_ids),
+                    MCheckpointRecord.state == 2,
+                    MCheckpointRecord.create_time > user['create_time'],
+                    MCheckpointRecord.create_time < int(time.time() * 1000)
+                )
+            )).fetchall()
+            currnet_friends_points = len(select_student_record)
+
+            conn.execute(update(MCheckpointRecord).values(
+                {
+                    "current_coin": current_coin,
+                    "currnet_invite": current_invite,
+                    "current_points": currnet_friends_points,
+                }
+            ).where(
+                MCheckpointRecord.user_id == user['user_id'],
+                MCheckpointRecord.checkpoint_number == user['checkpoint_number']
+            ))
+    print("Done update checkpoint record")
+
+
 if __name__ == '__main__':
     scheduler = BlockingScheduler()
     scheduler.add_job(update_rank_user, "interval", minutes=60)
@@ -316,6 +372,7 @@ if __name__ == '__main__':
     scheduler.add_job(update_activity, "interval", minutes=20)
     scheduler.add_job(update_partner_status, "interval", hours=4)
     scheduler.add_job(update_leader, "interval", hours=4)
+    scheduler.add_job(update_checkpoint_record, "interval", minutes=2)
     # scheduler.add_job(update_activity, "interval", seconds=2)
     # scheduler.add_job(update_enddate_invite, "interval", seconds=2)
     # scheduler.add_job(my_clock, "cron", hour='21', minute='48')
