@@ -37,8 +37,9 @@ async def get_checkpoint(request):
     ).order_by(MCheckpointRecord.checkpoint_number.desc()).limit(1)
     cur = await connection.execute(select_user_point)
     rec = await cur.fetchone()
-    if not rec or rec['state'] == 2 or rec['checkpoint_number'] >= 7:
-        await connection.execute(update(MCheckpointRecord).values({
+    if not rec:
+        # 插入第一关
+        await connection.execute(insert(MCheckpointRecord).values({
             "user_id": user_id,
             "checkpoint_number": 1 if not rec else rec['checkpoint_number'] + 1,
             "create_time": int(time.time() * 1000),
@@ -49,7 +50,36 @@ async def get_checkpoint(request):
             "reward_amount": 0,
             "state": 0
         }))
+    else:
+        # 上一关已完成
+        if rec['state'] == 2:
+            # 上一关大于等于第七关
+            if rec['checkpoint_number'] >= 7:
+                return web.json_response({
+                    "code": 200,
+                    "message": "已达终点"
+                })
+
+            # 小于第七关
+            else:
+                # 插入下一关数据
+                await connection.execute(insert(MCheckpointRecord).values({
+                    "user_id": user_id,
+                    "checkpoint_number": rec['checkpoint_number'] + 1,
+                    "create_time": int(time.time() * 1000),
+                    "end_time": 0,
+                    "current_coin": 0,
+                    "current_invite": 0,
+                    "current_points": 0,
+                    "reward_amount": 0,
+                    "state": 0
+                }))
     # 查询关卡具体指标
+    select_user_point = select([MCheckpointRecord]).where(
+        MCheckpointRecord.user_id == user_id
+    ).order_by(MCheckpointRecord.checkpoint_number.desc()).limit(1)
+    cur = await connection.execute(select_user_point)
+    rec = await cur.fetchone()
     checkpoint = rec['checkpoint_number'] if rec else 1
     select_checkpoint = select([MCheckpoint]).where(
         MCheckpoint.checkpoint_number == checkpoint
@@ -67,8 +97,8 @@ async def get_checkpoint(request):
             "friends_checkpoint_number": rec_point['friends_checkpoint_number'],
             "create_time": rec['create_time'] if rec else int(time.time() * 1000),
             "end_time": rec['end_time'] if rec else 0,
-            "task_info": "任务要求预留字段",
-            "reward_amount": int(rec['reward_amount']) if rec else 0,
+            "task_info": rec_point['task_info'] if rec_point else "任务要求",
+            "reward_amount": int(rec_point['reward_amount']) if rec_point else 0,
             "state": rec['state'] if rec else 0
         }
     select_income = select([MCheckpointIncome]).where(
@@ -266,7 +296,7 @@ async def post_checkpoint_card(request):
     )
     cur = await connection.execute(select_exist_record)
     rec = await cur.fetchone()
-    if rec['state'] == 2:
+    if rec and rec['state'] == 2:
         return web.json_response({
             "code": 402,
             "message": "奖励已发"
@@ -295,13 +325,13 @@ async def post_checkpoint_card(request):
         and_(
             MCheckpointRecord.user_id == user_id,
             MCheckpointRecord.checkpoint_number == r_json['checkpoint_number'],
-            MCheckpointRecord.reward_amount == 0
+            MCheckpointRecord.state == 1
         )
     ))
     # 插入闯关解锁金额表
     await connection.execute(insert(MCheckpointIncome).values({
         "user_id": user_id,
-        "amount": r_json['card_reward'],
+        "amount": rec_check['reward_amount'],
         "create_time": int(time.time() * 1000),
         "update_time": int(time.time() * 1000),
     }))
@@ -320,7 +350,7 @@ async def post_checkpoint_card(request):
     #     }))
     json_result = {
         "code": 200,
-        "message": "success"
+        "message": "本关奖励顺利发放"
     }
     return web.json_response(json_result)
 
@@ -362,6 +392,7 @@ async def get_reward(request):
     })
 
 
+# 团队奖励统计
 @routes.get('/partner/reward_detail')
 async def get_partner_reward_detail(request):
     token = request.query.get('token')
@@ -417,6 +448,7 @@ async def get_partner_reward_detail(request):
     return web.json_response(json_result)
 
 
+# 团队奖励详情
 @routes.get('/partner/partner_detail')
 async def get_partner_reward_detail(request):
     token = request.query.get('token')

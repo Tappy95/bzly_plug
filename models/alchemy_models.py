@@ -2090,6 +2090,7 @@ class MCheckpoint(Base):
     friends_number = Column(INTEGER(5), server_default=text("'0'"), comment='好友数')
     friends_checkpoint_number = Column(INTEGER(5), server_default=text("'0'"), comment='好友须完成关数')
     admin_id = Column(String(50), nullable=False, comment='管理员')
+    task_info = Column(String(255), nullable=False, comment='任务要求文字说明')
     create_time = Column(BIGINT(20), nullable=False, comment='创建时间')
     update_time = Column(BIGINT(20), comment='更新时间')
     state = Column(INTEGER(2), nullable=False, server_default=text("'0'"), comment='状态:0=关闭,1开启')
