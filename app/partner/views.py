@@ -4,7 +4,7 @@ import time
 import traceback
 from datetime import datetime
 from operator import itemgetter
-from random import random, uniform
+from random import random, uniform, randint
 from urllib.parse import quote
 
 from config import *
@@ -495,8 +495,55 @@ async def get_partner_reward_detail(request):
     return web.json_response(json_result)
 
 
-@routes.get('/partner/boost')
-async def get_boost(request):
-    params = {**request.query}
+@routes.post('/partner/boost')
+async def post_boost(request):
+    # params = {**request.query}
+    params = await request.post()
     connection = request['db_connection']
-    user_id = await select_user_id(connection,params['token'])
+    user_id = await select_user_id(connection, params['token'])
+    # 查询leader
+    select_leader = select([MUserLeader]).where(
+        MUserLeader.user_id == user_id
+    )
+    cur = await connection.execute(select_leader)
+    rec = await cur.fetchone()
+    # 查询leader闯关状态 state = 1
+    if rec:
+        select_checkpoint = select([MCheckpointRecord]).where(
+            and_(
+                MCheckpointRecord.state == 1,
+                MCheckpointRecord.user_id == rec['leader_id']
+            )
+        )
+        cur_check = await connection.execute(select_checkpoint)
+        rec_check = cur_check.fetchone()
+        if rec_check:
+            c_result = await cash_exchange(
+                connection,
+                user_id=rec_check['user_id'],
+                amount=randint(300, 1000),
+                changed_type=37,
+                reason="闯关助力",
+                remarks="闯关助力",
+                flow_type=1
+            )
+            if c_result:
+                return web.json_response({
+                    "code": 200,
+                    "message": "助力成功"
+                })
+            else:
+                return web.json_response({
+                    "code": 400,
+                    "message": "助力失败,请联系管理员"
+                })
+        else:
+            return web.json_response({
+                "code": 400,
+                "message": "上级合伙人不在闯关状态,无法助力"
+            })
+    else:
+        return web.json_response({
+            "code": 400,
+            "message": "无上级合伙人可助力"
+        })

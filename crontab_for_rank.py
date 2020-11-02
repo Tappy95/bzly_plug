@@ -316,7 +316,7 @@ def update_checkpoint_record():
     with engine.connect() as conn:
         select_record = conn.execute(select([MCheckpointRecord]).where(
             MCheckpointRecord.state == 1
-        )).fetchall
+        )).fetchall()
         for user in select_record:
             # 查询用户时间段内的金币收益
             select_change = conn.execute(select([LCoinChange]).where(
@@ -326,7 +326,7 @@ def update_checkpoint_record():
                     LCoinChange.changed_time > user['create_time'],
                     LCoinChange.changed_time < int(time.time() * 1000)
                 )
-            )).fetchall
+            )).fetchall()
             current_coin = sum([change['amount'] for change in select_change])
 
             # 查询用户时间段内的邀请人数
@@ -358,8 +358,10 @@ def update_checkpoint_record():
                     "current_points": currnet_friends_points,
                 }
             ).where(
-                MCheckpointRecord.user_id == user['user_id'],
-                MCheckpointRecord.checkpoint_number == user['checkpoint_number']
+                and_(
+                    MCheckpointRecord.user_id == user['user_id'],
+                    MCheckpointRecord.checkpoint_number == user['checkpoint_number']
+                )
             ))
     print("Done update checkpoint record")
 
