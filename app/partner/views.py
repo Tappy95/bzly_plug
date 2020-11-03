@@ -410,26 +410,25 @@ async def get_partner_reward_detail(request):
     team_ids = [user['user_id'] for user in rec]
 
     # 查流水
-    if team_ids:
-        select_change = select([LCoinChange]).where(
-            and_(
-                LCoinChange.user_id.in_(team_ids),
-                LCoinChange.flow_type == 1,
-                or_(
-                    LCoinChange.changed_type == 35,  # 一级直属用户
-                    LCoinChange.changed_type == 36  # 二级直属用户
-                )
+    select_change = select([LCoinChange]).where(
+        and_(
+            LCoinChange.user_id == user_id,
+            LCoinChange.flow_type == 1,
+            or_(
+                LCoinChange.changed_type == 35,  # 一级直属用户
+                LCoinChange.changed_type == 36  # 二级直属用户
             )
         )
-        cur_change = await connection.execute(select_change)
-        rec_change = await cur_change.fetchall()
-        teamBenefit = sum([change['amount'] for change in rec_change])
+    )
+    cur_change = await connection.execute(select_change)
+    rec_change = await cur_change.fetchall()
+    teamBenefit = sum([change['amount'] for change in rec_change])
     json_result = {
         "data": {
             "reward": 1,
-            "teamBenefit": teamBenefit if team_ids else 0,  # 我的团队总收益->金币
+            "teamBenefit": teamBenefit if rec_change else 0,  # 我的团队总收益->金币
             "directProfit": 3,
-            "drReward": teamBenefit if team_ids else 0,  # 团队详情->收益->金币
+            "drReward": teamBenefit if rec_change else 0,  # 团队详情->收益->金币
             "ordinaryProfit": 5,
             "directPeopleNum": 6,
             "highVipAmount": 7,
@@ -439,7 +438,7 @@ async def get_partner_reward_detail(request):
             "isiIndirectProfit": 12,
             "highVipCount": 13,
             "indirectProfit": 14,
-            "drPeopleNum": len(team_ids) if team_ids else 0  # 团队详情->人数
+            "drPeopleNum": len(team_ids) if rec else 0  # 团队详情->人数
         },
         "message": "操作成功",
         "statusCode": "2000",
@@ -459,7 +458,20 @@ async def get_partner_reward_detail(request):
         LLeaderChange.leader_id == user_id
     )
     cur = await connection.execute(select_team)
-    rec = await cur.fetchone()
+    rec = await cur.fetchall()
+    list_info = []
+    for info in rec:
+        result = {
+                "drReward": '10000',
+                "drPeopleNum": '20000',
+                "updateTime": info['create_time'].strftime('%Y-%m-%d') if info else '2000-01-01',
+                "apprenticeCount": info['active_user'] if info else 0,
+                "firstReward": 0,
+                "secondReward": 0,
+                "total": info['total_reward'] if info else 0,
+                "per": '0'
+            }
+        list_info.append(result)
     json_result = {
         "data": {
             "lastPage": 0,
@@ -470,16 +482,7 @@ async def get_partner_reward_detail(request):
             "nextPage": 0,
             "endRow": 0,
             "pageSize": 50,
-            "list": [{
-                "drReward": '10000',
-                "drPeopleNum": '20000',
-                "updateTime": rec['create_time'].strftime('%Y-%m-%d') if rec else '2000-01-01',
-                "apprenticeCount": rec['active_user'] if rec else 0,
-                "firstReward": 0,
-                "secondReward": 0,
-                "total": rec['total_reward'] / 10000 if rec else 0,
-                "per": '0'
-            }],
+            "list": list_info,
             "pageNum": 1,
             "navigatePages": 8,
             "navigateFirstPage": 0,

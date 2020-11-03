@@ -163,8 +163,8 @@ def update_activity():
                                                microseconds=now.microsecond),
                 "total_reward": sum([change['amount'] for change in select_activity if change['flow_type'] == 1 and (
                         change['changed_type'] == 35 or change['changed_type'] == 36)]),
-                "active_user": len([change['user_id'] for change in select_activity if change['flow_type'] == 1 and (
-                        change['changed_type'] == 35 or change['changed_type'] == 36)]),
+                "active_user": len(set([change['user_id'] for change in select_activity if change['flow_type'] == 1 and (
+                        change['changed_type'] == 35 or change['changed_type'] == 36)])),
                 "update_time": now
             }
             # 更新当日汇总表
@@ -398,7 +398,7 @@ def update_invite_users():
 def update_user_qilin():
     print("wake up update user qilin")
     with engine.connect() as conn:
-        select_partner = conn.execute(select(MPartnerInfo)).fetchall()
+        select_partner = conn.execute(select([MPartnerInfo])).fetchall()
         select_user = conn.execute(select([MUserInfo])).fetchall()
         for partner in select_partner:
             for user in select_user:
