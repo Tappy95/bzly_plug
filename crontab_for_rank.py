@@ -79,8 +79,19 @@ def update_rank_user():
 
 # 更新周期内邀请人数
 def update_enddate_invite():
+    print("wake up update enddate invite")
     # 遍历合伙人
     with engine.connect() as conn:
+        select_user = conn.execute(select([MUserInfo])).fetchall()
+        for user in select_user:
+            select_invite = conn.execute(select([MUserInfo]).where(
+                MUserInfo.referrer == user['user_id']
+            )).fetchall()
+            conn.execute(update(MUserInfo).values({
+                "apprentice": len(select_invite)
+            }).where(
+                MUserInfo.user_id == user['user_id']
+            ))
         select_partner = conn.execute(select([MPartnerInfo])).fetchall()
         for partner in select_partner:
             # 计算当前合伙人周期
@@ -271,7 +282,7 @@ def update_partner_status():
                 # 到期
                 if enddate >= datetime.now():
                     if len(select_activity) >= int(activity_limit) \
-                            and invite_user >= invite_limit:
+                            and all_invite_user >= invite_limit:
                         # 任务完成
                         status = 1
                     else:
@@ -283,7 +294,7 @@ def update_partner_status():
             # 原本非合伙人
             else:
                 if len(select_activity) >= int(activity_limit) \
-                        and invite_user >= invite_limit:
+                        and all_invite_user >= invite_limit:
                     # 任务完成
                     status = 1
                 else:
@@ -299,7 +310,7 @@ def update_partner_status():
                     "activity_points": len(select_activity),
                     # 状态
                     "status": status,
-                    "enddate": enddate,
+                    "enddate": nextdate,
                     "update_time": datetime.now()
                 }
             ).where(
@@ -354,7 +365,7 @@ def update_checkpoint_record():
             conn.execute(update(MCheckpointRecord).values(
                 {
                     "current_coin": current_coin,
-                    "currnet_invite": current_invite,
+                    "current_invite": current_invite,
                     "current_points": currnet_friends_points,
                 }
             ).where(
@@ -366,6 +377,45 @@ def update_checkpoint_record():
     print("Done update checkpoint record")
 
 
+# 实时统计邀请人数
+def update_invite_users():
+    print("wake up update intite users")
+    with engine.connect() as conn:
+        select_user = conn.execute(select([MUserInfo])).fetchall()
+        for user in select_user:
+            select_invite = conn.execute(select([MUserInfo]).where(
+                MUserInfo.referrer == user['user_id']
+            )).fetchall()
+            conn.execute(update(MUserInfo).values({
+                "apprentice": len(select_invite)
+            }).where(
+                MUserInfo.user_id == user['user_id']
+            ))
+    print("done update intite users")
+
+
+# 更新用户表麒麟状态
+def update_user_qilin():
+    print("wake up update user qilin")
+    with engine.connect() as conn:
+        select_partner = conn.execute(select(MPartnerInfo)).fetchall()
+        select_user = conn.execute(select([MUserInfo])).fetchall()
+        for partner in select_partner:
+            for user in select_user:
+                if user['user_id'] == partner['user_id']:
+                    if partner['status'] == 1:
+                        if user['role_type'] != 1 and user['high_role'] != 1:
+                            continue
+                        else:
+                            conn.execute(update(MUserInfo).values({
+                                "role_type": partner['level'],
+                                "high_role": partner['level']
+                            }).where(
+                                MUserInfo.user_id == user['user_id']
+                            ))
+    print("done update user qilin")
+
+
 if __name__ == '__main__':
     scheduler = BlockingScheduler()
     scheduler.add_job(update_rank_user, "interval", minutes=60)
@@ -375,6 +425,7 @@ if __name__ == '__main__':
     scheduler.add_job(update_partner_status, "interval", hours=4)
     scheduler.add_job(update_leader, "interval", hours=4)
     scheduler.add_job(update_checkpoint_record, "interval", minutes=2)
+    scheduler.add_job(update_user_qilin, "interval", minutes=2)
     # scheduler.add_job(update_activity, "interval", seconds=2)
     # scheduler.add_job(update_enddate_invite, "interval", seconds=2)
     # scheduler.add_job(my_clock, "cron", hour='21', minute='48')

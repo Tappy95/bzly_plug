@@ -1115,16 +1115,21 @@ async def get_current_day_video_reward(request):
                 remarks="趣变视频奖励",
                 flow_type=1
             )
-        if c_result:
-            update_callback_status = update(TpVideoCallback).values({
-                "state": 1
-            }).where(
-                and_(
-                    TpVideoCallback.user_id == user_id,
-                    TpVideoCallback.trans_id == trans_id
-                )
+            fs_result = await fission_schema(
+                connection,
+                aimuser_id=user_id,
+                task_coin=int(reward_amount)
             )
-            await connection.execute(update_callback_status)
+            if c_result and fs_result:
+                update_callback_status = update(TpVideoCallback).values({
+                    "state": 1
+                }).where(
+                    and_(
+                        TpVideoCallback.user_id == user_id,
+                        TpVideoCallback.trans_id == trans_id
+                    )
+                )
+                await connection.execute(update_callback_status)
 
         return web.json_response({
             "code": 200,

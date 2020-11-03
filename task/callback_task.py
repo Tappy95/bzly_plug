@@ -171,9 +171,9 @@ async def cash_exchange_panrtner(connection, partner_info, amount, flow_type=1, 
 
         # 计算金币余额
         if flow_type == 1:
-            coin_balance = record_cur_coin['coin'] + amount
+            coin_balance = record_cur_coin['future_coin'] + amount
         else:
-            coin_balance = record_cur_coin['coin'] - amount
+            coin_balance = record_cur_coin['future_coin'] - amount
             if coin_balance <= 0:
                 logger.info("变更金币失败,余额不足")
         retry = 3
