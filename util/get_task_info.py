@@ -156,6 +156,12 @@ def insert_leader_id():
             conn.execute(on_duplicate_key_stmt)
 
 
+def sync_channel_admin():
+    dict = {
+
+    }
+
+
 if __name__ == '__main__':
     # 爱变现
     # loop = asyncio.get_event_loop()

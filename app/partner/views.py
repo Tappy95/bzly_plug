@@ -2,7 +2,7 @@ import copy
 import json
 import time
 import traceback
-from datetime import datetime
+from datetime import datetime, timedelta
 from operator import itemgetter
 from random import random, uniform, randint
 from urllib.parse import quote
@@ -503,11 +503,36 @@ async def post_boost(request):
     user_id = await select_user_id(connection, params['token'])
     # 查询leader
     select_leader = select([MUserLeader]).where(
-        MUserLeader.user_id == user_id
+        and_(
+            MUserLeader.user_id == user_id,
+            MUserLeader.leader_id != user_id
+        )
     )
     cur = await connection.execute(select_leader)
     rec = await cur.fetchone()
-    # 查询leader闯关状态 state = 1
+    # 查询今日是否助力
+    # 获取今天零点
+    now = datetime.now()
+    zeroToday = now - timedelta(hours=now.hour, minutes=now.minute, seconds=now.second, microseconds=now.microsecond)
+    # 获取23:59:59
+    lastToday = zeroToday + timedelta(hours=23, minutes=59, seconds=59)
+    zeroTodaytime = time.mktime(zeroToday.timetuple()) * 1000
+    lastTodaytime = time.mktime(lastToday.timetuple()) * 1000
+    select_change = select([LCoinChange]).where(
+        and_(
+            LCoinChange.changed_time > zeroTodaytime,
+            LCoinChange.changed_time < lastTodaytime,
+            LCoinChange.remarks == user_id
+        )
+    )
+    cur_today = await connection.execute(select_change)
+    rec_today = await cur_today.fetchone()
+    if rec_today:
+        return web.json_response({
+            "code": 400,
+            "message": "您今天已经助力过啦!"
+        })
+        # 查询leader闯关状态 state = 1
     if rec:
         select_checkpoint = select([MCheckpointRecord]).where(
             and_(
@@ -516,7 +541,7 @@ async def post_boost(request):
             )
         )
         cur_check = await connection.execute(select_checkpoint)
-        rec_check = cur_check.fetchone()
+        rec_check = await cur_check.fetchone()
         if rec_check:
             c_result = await cash_exchange(
                 connection,
@@ -524,7 +549,7 @@ async def post_boost(request):
                 amount=randint(300, 1000),
                 changed_type=37,
                 reason="闯关助力",
-                remarks="闯关助力",
+                remarks=user_id,
                 flow_type=1
             )
             if c_result:
