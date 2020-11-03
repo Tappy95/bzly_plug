@@ -137,7 +137,7 @@ async def fission_schema(connection, aimuser_id, task_coin, is_one=True):
         if record_partner:
             # 上级是合伙人,金币加入合伙人表
             await cash_exchange_panrtner(connection, record_partner, amount, 1, is_one)
-        else:
+        elif record_aimuser['referrer']:
             # 上级不是合伙人
             await cash_exchange(
                 connection,
@@ -148,6 +148,8 @@ async def fission_schema(connection, aimuser_id, task_coin, is_one=True):
                 remarks="徒弟贡献",
                 flow_type=1
             )
+        else:
+            return False
         if is_one and record_partner:
             await fission_schema(
                 connection,
