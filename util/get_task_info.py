@@ -159,17 +159,17 @@ def insert_leader_id():
 
 def sync_channel_admin():
     dict = {
-        # "sld": "18746458381",
-        # "hcl": "18746286622",
-        # "fyd": "15945238667",
-        # "dx": "15545020905",
-        # "lxq": "18645218625",
-        # "cjl": "19845286972",
-        # "xmn": "16606671234",
-        # "wf": "15046200651",
-        # "wj": "13634528880",
-        # "yy": "18646619228",
-        # "sl": "13514685861",
+        "sld": "18746458381",
+        "hcl": "18746286622",
+        "fyd": "15945238667",
+        "dx": "15545020905",
+        "lxq": "18645218625",
+        "cjl": "19845286972",
+        "xmn": "16606671234",
+        "wf": "15046200651",
+        "wj": "13634528880",
+        "yy": "18646619228",
+        "sl": "13514685861",
         "xq": "13104527681"
     }
     # 查询并修改用户表渠道为xx的,且没有上级用户的,修改上级用户为手机号所绑定的用户
@@ -183,23 +183,26 @@ def sync_channel_admin():
 
             conn.execute(update(MUserInfo).values(
                 {
-                    "referrer": admin_id,
-                    "recommended_time": int(time.time() * 1000)
+                    # "referrer": admin_id,
+                    # "recommended_time": int(time.time() * 1000),
+                    "role_type": 2,
+                    "high_role": 2
                 }
             ).where(
                 and_(
-                    MUserInfo.channel_code == admin,
-                    MUserInfo.referrer == None,
-                    MUserInfo.mobile != dict[admin]
+                    # MUserInfo.channel_code == admin,
+                    # MUserInfo.referrer == None,
+                    # MUserInfo.mobile != dict[admin]
+                    MUserInfo.user_id == admin_id
                 )
             ))
-        select_user = conn.execute(select([MUserInfo])).fetchall()
-        for user in select_user:
-            conn.execute(update(MUserLeader).values({
-                "referrer": user['referrer']
-            }).where(
-                MUserLeader.user_id == user['user_id']
-            ))
+        # select_user = conn.execute(select([MUserInfo])).fetchall()
+        # for user in select_user:
+        #     conn.execute(update(MUserLeader).values({
+        #         "referrer": user['referrer']
+        #     }).where(
+        #         MUserLeader.user_id == user['user_id']
+        #     ))
     print("done work")
 
 
@@ -242,4 +245,4 @@ if __name__ == '__main__':
     # loop.run_until_complete(get_ibx_tasks())
 
     # 多游游戏获取
-    sync_channel_partner()
+    sync_channel_admin()
