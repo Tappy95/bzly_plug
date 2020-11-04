@@ -503,22 +503,45 @@ async def get_partner_team_detail(request):
     params = {**request.query}
     connection = request['db_connection']
     user_id = await select_user_id(connection, params['token'])
-    # 查询一级下级
-    # 查询二级下级
+    floor_dict = {
+        '1': "35",
+        '2': "36",
+        '3': ""
+    }
+    name_dict = {
+        35: "直属一级奖励",
+        36: "直属二级奖励",
+    }
     # 查询一二级下级流水表
+    coditions = []
+    coditions.append(or_(LCoinChange.changed_type == 35, LCoinChange.changed_type == 36))
+    if user_id:
+        coditions.append(LCoinChange.user_id == user_id)
+    if 'friend_floor' in params and floor_dict[params['friend_floor']]:
+        coditions.append(LCoinChange.changed_type == int(floor_dict[params['friend_floor']]))
+    print(coditions)
+    select_coin_change = select([LCoinChange]).where(and_(*coditions)).order_by(LCoinChange.changed_time.desc())
+    cur = await connection.execute(select_coin_change)
+    rec = await cur.fetchall()
+
+    list_info = []
+    for row in rec:
+        result = {
+            "id": row['id'],
+            "friend_floor": name_dict[row['changed_type']],
+            "reward_time": row['changed_time'],
+            "reward": row['amount']
+        }
+        list_info.append(result)
+
     json_result = {
         "data": {
-            "total": 0,
-            "list": [{
-                "account_id": "xxx",
-                "friend_floor": "axxxx",
-                "reward_time": 1604484270000,
-                "reward": 200
-            }]
+            "total": len(list_info),
+            "list": list_info
         },
         "message": "操作成功",
         "statusCode": "2000",
-        "token": "09eb6e6735932dec7acde7c878f56921"
+        "token": params['token']
     }
     return web.json_response(json_result)
 
