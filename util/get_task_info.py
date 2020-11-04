@@ -239,10 +239,59 @@ def sync_channel_partner():
     print("done work")
 
 
+def fix_coin_change():
+    with engine.connect() as conn:
+        select_conin = conn.execute(select([LCoinChange]).where(
+            and_(
+                LCoinChange.amount > 100000,
+                LCoinChange.changed_time > 1604466648344
+            )
+        )).fetchall()
+        for user in select_conin:
+            select_user_coin = conn.execute(select([MUserInfo]).where(
+                MUserInfo.user_id == user['user_id']
+            )).fetchone()
+            conn.execute(update(MUserInfo).values({
+                "coin": select_user_coin['coin'] - user['amount']
+            }).where(
+                MUserInfo.user_id == user['user_id']
+            ))
+
+
+def fix_low_coin_change():
+    with engine.connect() as conn:
+        select_user = conn.execute(select([MUserInfo])).fetchall()
+        for user in select_user:
+            select_coin = conn.execute(select([LCoinChange]).where(
+                LCoinChange.user_id == user['user_id']
+            ).order_by(LCoinChange.changed_time.desc()).limit(1)).fetchone()
+
+            # select_user_coin = conn.execute(select([MUserInfo]).where(
+            #     MUserInfo.user_id == user['user_id']
+            # )).fetchone()
+            if not select_coin:
+                continue
+            conn.execute(update(MUserInfo).values({
+                "coin": select_coin['coin_balance']
+            }).where(
+                MUserInfo.user_id == user['user_id']
+            ))
+
+
+def update_leader_info():
+    with engine.connect() as conn:
+        conn.execute(update(MUserLeader).values(
+            {
+                "referrer":"d64bb408629c4f7e9f5c92b503672dcb"
+            }
+        ).where(
+            MUserLeader.referrer == None
+        ))
+
 if __name__ == '__main__':
     # 爱变现
     # loop = asyncio.get_event_loop()
     # loop.run_until_complete(get_ibx_tasks())
 
     # 多游游戏获取
-    sync_channel_admin()
+    fix_low_coin_change()

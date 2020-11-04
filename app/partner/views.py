@@ -462,15 +462,15 @@ async def get_partner_reward_detail(request):
     list_info = []
     for info in rec:
         result = {
-                "drReward": '10000',
-                "drPeopleNum": '20000',
-                "updateTime": info['create_time'].strftime('%Y-%m-%d') if info else '2000-01-01',
-                "apprenticeCount": info['active_user'] if info else 0,
-                "firstReward": 0,
-                "secondReward": 0,
-                "total": info['total_reward'] if info else 0,
-                "per": '0'
-            }
+            "drReward": '10000',
+            "drPeopleNum": '20000',
+            "updateTime": info['create_time'].strftime('%Y-%m-%d') if info else '2000-01-01',
+            "apprenticeCount": info['active_user'] if info else 0,
+            "firstReward": 0,
+            "secondReward": 0,
+            "total": info['total_reward'] if info else 0,
+            "per": '0'
+        }
         list_info.append(result)
     json_result = {
         "data": {
@@ -498,6 +498,32 @@ async def get_partner_reward_detail(request):
     return web.json_response(json_result)
 
 
+@routes.get('/partner/team_detail')
+async def get_partner_team_detail(request):
+    params = {**request.query}
+    connection = request['db_connection']
+    user_id = await select_user_id(connection, params['token'])
+    # 查询一级下级
+    # 查询二级下级
+    # 查询一二级下级流水表
+    json_result = {
+        "data": {
+            "total": 0,
+            "list": [{
+                "account_id": "xxx",
+                "friend_floor": "axxxx",
+                "reward_time": 1604484270000,
+                "reward": 200
+            }]
+        },
+        "message": "操作成功",
+        "statusCode": "2000",
+        "token": "09eb6e6735932dec7acde7c878f56921"
+    }
+    return web.json_response(json_result)
+
+
+# 闯关助力
 @routes.post('/partner/boost')
 async def post_boost(request):
     # params = {**request.query}

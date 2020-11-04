@@ -41,13 +41,14 @@ async def cash_exchange(connection, user_id, amount, changed_type, reason, remar
     )
     cursor_leader = await connection.execute(select_user_leader)
     record_leader = await cursor_leader.fetchone()
-    select_user_partner = select([MPartnerInfo]).where(
-        MPartnerInfo.user_id == record_leader['leader_id']
-    )
-    cursor_partner = await connection.execute(select_user_partner)
-    record_partner = await cursor_partner.fetchone()
-    if record_partner:
-        current_activity = record_partner['activity_points'] + 1
+    if record_leader:
+        select_user_partner = select([MPartnerInfo]).where(
+            MPartnerInfo.user_id == record_leader['leader_id']
+        )
+        cursor_partner = await connection.execute(select_user_partner)
+        record_partner = await cursor_partner.fetchone()
+        if record_partner:
+            current_activity = record_partner['activity_points'] + 1
     if record_cur_coin:
 
         # 计算金币余额
@@ -85,13 +86,13 @@ async def cash_exchange(connection, user_id, amount, changed_type, reason, remar
                     )
                 )
                 await connection.execute(update_user_coin)
-
-                update_leader_activity = update(MPartnerInfo).values({
-                    "activity_points": current_activity
-                }).where(
-                    MPartnerInfo.user_id == record_leader['leader_id']
-                )
-                await connection.execute(update_leader_activity)
+                if record_leader:
+                    update_leader_activity = update(MPartnerInfo).values({
+                        "activity_points": current_activity
+                    }).where(
+                        MPartnerInfo.user_id == record_leader['leader_id']
+                    )
+                    await connection.execute(update_leader_activity)
                 return True
             except Exception as e:
                 logger.info(e)
@@ -149,7 +150,7 @@ async def fission_schema(connection, aimuser_id, task_coin, is_one=True):
                 flow_type=1
             )
         else:
-            return False
+            return True
         if is_one and record_partner:
             await fission_schema(
                 connection,

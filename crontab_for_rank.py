@@ -163,8 +163,9 @@ def update_activity():
                                                microseconds=now.microsecond),
                 "total_reward": sum([change['amount'] for change in select_activity if change['flow_type'] == 1 and (
                         change['changed_type'] == 35 or change['changed_type'] == 36)]),
-                "active_user": len(set([change['user_id'] for change in select_activity if change['flow_type'] == 1 and (
-                        change['changed_type'] == 35 or change['changed_type'] == 36)])),
+                "active_user": len(
+                    set([change['user_id'] for change in select_activity if change['flow_type'] == 1 and (
+                            change['changed_type'] == 35 or change['changed_type'] == 36)])),
                 "update_time": now
             }
             # 更新当日汇总表
@@ -416,6 +417,27 @@ def update_user_qilin():
     print("done update user qilin")
 
 
+# 更新用户注册leader-biao
+def update_user_leader():
+    with engine.connect() as conn:
+        select_user = conn.execute(select([MUserInfo])).fetchall()
+        select_leader = conn.execute(select([MUserLeader])).fetchall()
+        user_leader_ids = [leader_info['user_id'] for leader_info in select_leader]
+        for user in select_user:
+            if user['user_id'] not in user_leader_ids:
+                select_refer_leader = conn.execute(select([MUserLeader]).where(
+                    MUserLeader.user_id == user['referrer']
+                )).fetchone()
+                if select_refer_leader:
+                    conn.execute(insert(MUserLeader).values({
+                        "user_id": user['user_id'],
+                        "referrer": user['referrer'],
+                        "leader_id": select_refer_leader['leader_id'],
+                        "update_time": datetime.now(),
+                    }))
+        print("done work")
+
+
 if __name__ == '__main__':
     scheduler = BlockingScheduler()
     scheduler.add_job(update_rank_user, "interval", minutes=60)
@@ -426,7 +448,7 @@ if __name__ == '__main__':
     scheduler.add_job(update_leader, "interval", hours=4)
     scheduler.add_job(update_checkpoint_record, "interval", minutes=2)
     scheduler.add_job(update_user_qilin, "interval", minutes=2)
-    # scheduler.add_job(update_activity, "interval", seconds=2)
+    scheduler.add_job(update_user_leader, "interval", minutes=5)
     # scheduler.add_job(update_enddate_invite, "interval", seconds=2)
     # scheduler.add_job(my_clock, "cron", hour='21', minute='48')
     scheduler.start()

@@ -1208,7 +1208,7 @@ async def restart_callback(request):
             "table": TpYwCallback,
             "order_column": "orderNo",
             "user_column": "mediaUserId",
-            "user_money_column": "userMoney",
+            "user_money_column": "userCurrency",
             "defeat_status": 0,
             "success_status": 1,
             "title_column": "advertName"
@@ -1260,7 +1260,10 @@ async def restart_callback(request):
         )
         cur_ctm = await connection.execute(select_coin_to_money)
         rec_ctm = await cur_ctm.fetchone()
-        task_coin = float(task[user_money_column]) * int(rec_ctm['dic_value'])
+        if float(task[user_money_column]) < 20:
+            task_coin = float(task[user_money_column]) * int(rec_ctm['dic_value'])
+        else:
+            task_coin = int(task[user_money_column])
 
         c_result = await cash_exchange(
             connection,
