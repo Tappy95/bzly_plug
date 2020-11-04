@@ -140,6 +140,13 @@ def update_activity():
             salave_ids = [salave['user_id'] for salave in select_salve]
             enddatetime = int(time.mktime(partner['enddate'].timetuple()) * 1000)
             startdatetime = int(time.mktime((enddate - timedelta(days=7)).timetuple()) * 1000)
+            select_leader_coin = conn.execute(select([LCoinChange]).where(
+                and_(
+                    LCoinChange.changed_time > startdatetime,
+                    LCoinChange.changed_time < enddatetime,
+                    LCoinChange.user_id == partner['user_id']
+                )
+            )).fetchall()
             select_activity = conn.execute(select([LCoinChange]).where(
                 and_(
                     LCoinChange.changed_time > startdatetime,
@@ -161,11 +168,9 @@ def update_activity():
                 "leader_id": partner['user_id'],
                 "create_time": now - timedelta(hours=now.hour, minutes=now.minute, seconds=now.second,
                                                microseconds=now.microsecond),
-                "total_reward": sum([change['amount'] for change in select_activity if change['flow_type'] == 1 and (
+                "total_reward": sum([change['amount'] for change in select_leader_coin if change['flow_type'] == 1 and (
                         change['changed_type'] == 35 or change['changed_type'] == 36)]),
-                "active_user": len(
-                    set([change['user_id'] for change in select_activity if change['flow_type'] == 1 and (
-                            change['changed_type'] == 35 or change['changed_type'] == 36)])),
+                "active_user": len(set([active_user['user_id'] for active_user in select_activity])),
                 "update_time": now
             }
             # 更新当日汇总表
