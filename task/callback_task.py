@@ -165,8 +165,8 @@ async def fission_schema(connection, aimuser_id, task_coin, is_one=True):
 # 合伙人发放未入账金币
 async def cash_exchange_panrtner(connection, partner_info, amount, flow_type=1, is_one=True):
     # 查询当前用户金币
-    select_user_current_coin = select([MPartnerInfo]).where(
-        MPartnerInfo.user_id == partner_info['user_id']
+    select_user_current_coin = select([MUserInfo]).where(
+        MUserInfo.user_id == partner_info['user_id']
     )
     cursor_cur_coin = await connection.execute(select_user_current_coin)
     record_cur_coin = await cursor_cur_coin.fetchone()
@@ -174,13 +174,13 @@ async def cash_exchange_panrtner(connection, partner_info, amount, flow_type=1, 
 
         # 计算金币余额
         if flow_type == 1:
-            coin_balance = record_cur_coin['future_coin'] + amount
+            coin_balance = record_cur_coin['coin'] + amount
         else:
-            coin_balance = record_cur_coin['future_coin'] - amount
+            coin_balance = record_cur_coin['coin'] - amount
             if coin_balance <= 0:
                 logger.info("变更金币失败,余额不足")
         retry = 3
-        activity = record_cur_coin['activity_points'] + 1
+        # activity = record_cur_coin['activity_points'] + 1
         while retry:
             try:
                 # 插入金币变更信息
@@ -193,18 +193,18 @@ async def cash_exchange_panrtner(connection, partner_info, amount, flow_type=1, 
                     "status": 1,
                     "account_type": 0,
                     "reason": "下级用户贡献",
-                    "remarks": "合伙人未入账金币",
+                    "remarks": "合伙人金币",
                     "coin_balance": coin_balance
                 }
                 ins_exange = insert(LCoinChange).values(insert_exchange)
                 await connection.execute(ins_exange)
                 # 更改用户金币
-                update_user_coin = update(MPartnerInfo).values({
-                    "future_coin": coin_balance
+                update_user_coin = update(MUserInfo).values({
+                    "coin": coin_balance
                 }).where(
                     and_(
-                        MPartnerInfo.user_id == partner_info['user_id'],
-                        MPartnerInfo.future_coin == record_cur_coin['future_coin']
+                        MUserInfo.user_id == partner_info['user_id'],
+                        MUserInfo.coin == record_cur_coin['coin']
                     )
                 )
                 await connection.execute(update_user_coin)
@@ -488,7 +488,7 @@ async def today_user_sign(connection, user_id):
     rec_sign = await cur_sign.fetchone()
     sign_coin_from_dic = await get_pdictionary_key(connection, "sign_coin")
     sign_coin = eval(sign_coin_from_dic)
-    if rec_sign:
+    if rec_sign and rec_sign['sigh_time'] - int(time.time()*1000) < 86400000:
         next_stick_times = rec_sign['stick_times'] + 1
     else:
         next_stick_times = 1

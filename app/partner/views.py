@@ -498,6 +498,7 @@ async def get_partner_reward_detail(request):
     return web.json_response(json_result)
 
 
+# 团队奖励明细
 @routes.get('/partner/team_detail')
 async def get_partner_team_detail(request):
     params = {**request.query}
@@ -525,7 +526,13 @@ async def get_partner_team_detail(request):
     rec = await cur.fetchall()
 
     list_info = []
+    sum_1 = 0
+    sum_2 = 0
     for row in rec:
+        if row['changed_type'] == 35:
+            sum_1 += row['amount']
+        elif row['changed_type'] == 36:
+            sum_2 += row['amount']
         result = {
             "id": row['id'],
             "friend_floor": name_dict[row['changed_type']],
@@ -537,7 +544,10 @@ async def get_partner_team_detail(request):
     json_result = {
         "data": {
             "total": len(list_info),
-            "list": list_info
+            "list": list_info,
+            "sum_1": sum_1,
+            "sum_2": sum_2,
+            "sum_3": 0
         },
         "message": "操作成功",
         "statusCode": "2000",
@@ -594,11 +604,17 @@ async def post_boost(request):
         )
         cur_check = await connection.execute(select_checkpoint)
         rec_check = await cur_check.fetchone()
+        select_is_boost = select([LCoinChange]).where(
+            LCoinChange.remarks == user_id
+        )
+        cur_boost = await connection.execute(select_is_boost)
+        rec_boost = await cur_boost.fetchone()
+        amount = 200 if rec_boost else randint(200, 800)
         if rec_check:
             c_result = await cash_exchange(
                 connection,
                 user_id=rec_check['user_id'],
-                amount=randint(300, 1000),
+                amount=amount,
                 changed_type=37,
                 reason="闯关助力",
                 remarks=user_id,

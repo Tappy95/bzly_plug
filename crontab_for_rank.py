@@ -9,7 +9,7 @@ from sqlalchemy.dialects.mysql import insert
 
 from config import *
 from models.alchemy_models import LRankMachine, LRankCoin, MPartnerInfo, MUserLeader, LCoinChange, LLeaderChange, \
-    MCheckpointRecord, MUserInfo
+    MCheckpointRecord, MUserInfo, MCheckpoint
 from util.static_methods import serialize, get_pidic_key, update_leader_id
 
 engine = create_engine(
@@ -334,6 +334,10 @@ def update_checkpoint_record():
         select_record = conn.execute(select([MCheckpointRecord]).where(
             MCheckpointRecord.state == 1
         )).fetchall()
+        # 查询用户当前闯关邀请人闯关数限制
+        select_invite_limit = conn.execute(select([MCheckpoint])).fetchall()
+        limit_dict = {limits['checkpoint_number']: int(limits['friends_number']) for limits in select_invite_limit}
+
         for user in select_record:
             # 查询用户时间段内的金币收益
             select_change = conn.execute(select([LCoinChange]).where(
@@ -341,7 +345,8 @@ def update_checkpoint_record():
                     LCoinChange.user_id == user['user_id'],
                     LCoinChange.flow_type == 1,
                     LCoinChange.changed_time > user['create_time'],
-                    LCoinChange.changed_time < int(time.time() * 1000)
+                    LCoinChange.changed_time < int(time.time() * 1000),
+                    LCoinChange.remarks != "徒弟提现贡献"
                 )
             )).fetchall()
             current_coin = sum([change['amount'] for change in select_change])
@@ -354,8 +359,24 @@ def update_checkpoint_record():
                     MUserInfo.recommended_time < int(time.time() * 1000)
                 )
             )).fetchall()
+            invite_ids = [user['user_id'] for user in select_invite]
+            # 如果当前关没有关数限制,跳过
+            if limit_dict[user['checkpoint_number']]:
+                effect_user = 0
+                for u_id in invite_ids:
+                    select_current_checkpoint = conn.execute(select([MCheckpointRecord]).where(
+                        and_(
+                            MCheckpointRecord.user_id == u_id,
+                            MCheckpointRecord.state == 2
+                        )
+                    )).fetchall()
+                    if len(select_current_checkpoint) >= limit_dict[user['checkpoint_number']]:
+                        effect_user += 1
+                current_invite = effect_user
+            else:
+                current_invite = len(select_invite)
             students_ids = [student['user_id'] for student in select_invite]
-            current_invite = len(select_invite)
+            # current_invite = len(select_invite)
 
             # 查询用户时间段内的徒弟闯关数
             select_student_record = conn.execute(select([MCheckpointRecord]).where(

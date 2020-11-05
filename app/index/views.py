@@ -1102,7 +1102,8 @@ async def get_current_day_video_reward(request):
         # 每日红包签到,签到不发放视频奖励,只发放签到奖励
         if params['operate_type'] == '1':
             c_result = await today_user_sign(connection, user_id)
-            toast = "签到成功"
+            if c_result:
+                toast = "签到成功"
         else:
             # 发放视频奖励
             toast = "视频奖励"
