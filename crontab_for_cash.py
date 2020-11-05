@@ -93,7 +93,7 @@ async def cash_reward():
                                 "status": 1,
                                 "account_type": 0,
                                 "reason": "徒弟第{}提现奖励".format(count),
-                                "remarks": "徒弟贡献",
+                                "remarks": "徒弟提现贡献",
                                 "coin_balance": select_teacher['coin'] + amount
                             }
                             conn.execute(insert(LCoinChange).values(insert_exchange))

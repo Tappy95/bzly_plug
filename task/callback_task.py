@@ -183,7 +183,7 @@ async def cash_exchange_panrtner(connection, partner_info, amount, flow_type=1, 
             if coin_balance <= 0:
                 logger.info("变更金币失败,余额不足")
         retry = 3
-        activity = record_cur_coin['activity_points'] + 1
+        # activity = record_cur_coin['activity_points'] + 1
         while retry:
             try:
                 # 插入金币变更信息

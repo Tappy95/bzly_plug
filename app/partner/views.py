@@ -526,7 +526,13 @@ async def get_partner_team_detail(request):
     rec = await cur.fetchall()
 
     list_info = []
+    sum_1 = 0
+    sum_2 = 0
     for row in rec:
+        if row['changed_type'] == 35:
+            sum_1 += row['amount']
+        elif row['changed_type'] == 36:
+            sum_2 += row['amount']
         result = {
             "id": row['id'],
             "friend_floor": name_dict[row['changed_type']],
@@ -538,7 +544,10 @@ async def get_partner_team_detail(request):
     json_result = {
         "data": {
             "total": len(list_info),
-            "list": list_info
+            "list": list_info,
+            "sum_1": sum_1,
+            "sum_2": sum_2,
+            "sum_3": 0
         },
         "message": "操作成功",
         "statusCode": "2000",
