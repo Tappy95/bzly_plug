@@ -106,7 +106,18 @@ async def get_checkpoint(request):
     )
     cur_income = await connection.execute(select_income)
     rec_income = await cur_income.fetchall()
-    current_amount = sum([int(income['amount']) for income in rec_income]) if rec_income else 0
+    select_income_change = select([MCheckpointIncomeChange]).where(
+        MCheckpointIncomeChange.user_id == user_id
+    )
+    cur_income_change = await connection.execute(select_income_change)
+    rec_income_change = await cur_income_change.fetchall()
+    if rec_income and rec_income_change:
+        current_amount = sum([int(income['amount']) for income in rec_income]) - sum(
+            [int(income['change_amount']) for income in rec_income_change])
+    else:
+        current_amount = sum([int(income['amount']) for income in rec_income])
+    if current_amount < 0:
+        current_amount = 0
     json_result = {
         "code": 200,
         "message": "success",
@@ -360,6 +371,11 @@ async def post_checkpoint_card(request):
 async def get_reward(request):
     params = await request.post()
     cash = int(params['cash'])
+    if cash != 10:
+        return web.json_response({
+            "code":400,
+            "message":"导入金额不合法，满10元提现"
+        })
     connection = request['db_connection']
     user_id = await select_user_id(connection, params['token'])
     # 查询金额表,确定余额可用

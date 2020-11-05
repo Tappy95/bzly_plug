@@ -346,7 +346,8 @@ def update_checkpoint_record():
                     LCoinChange.flow_type == 1,
                     LCoinChange.changed_time > user['create_time'],
                     LCoinChange.changed_time < int(time.time() * 1000),
-                    LCoinChange.remarks != "徒弟提现贡献"
+                    LCoinChange.remarks != "徒弟提现贡献",
+                    LCoinChange.changed_type != 12
                 )
             )).fetchall()
             current_coin = sum([change['amount'] for change in select_change])

@@ -305,7 +305,7 @@ async def checkin_user_reward():
 
 def run():
     server = pipeflow.Server()
-    # server.add_routine_worker(cash_reward, interval=3, immediately=True)
+    server.add_routine_worker(cash_reward, interval=3, immediately=True)
     server.add_routine_worker(checkin_faker, interval=3, immediately=True)
     # server.add_routine_worker(update_checkin_result, interval=5, immediately=True)
     server.add_routine_worker(checkin_user_reward, interval=59, immediately=True)
