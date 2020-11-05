@@ -137,10 +137,7 @@ async def fission_schema(connection, aimuser_id, task_coin, is_one=True):
         record_partner = await cursor_partner.fetchone()
         if record_partner:
             # 上级是合伙人,金币加入合伙人表
-            if is_one:
-                await cash_exchange_panrtner(connection, record_partner, amount, 1, is_one)
-            else:
-                await cash_exchange_panrtner(connection, record_partner, amount, 1, False)
+            await cash_exchange_panrtner(connection, record_partner, amount, 1, is_one)
         elif record_aimuser['referrer']:
             # 上级不是合伙人
             await cash_exchange(
@@ -196,7 +193,7 @@ async def cash_exchange_panrtner(connection, partner_info, amount, flow_type=1, 
                     "status": 1,
                     "account_type": 0,
                     "reason": "下级用户贡献",
-                    "remarks": "合伙人未入账金币",
+                    "remarks": "合伙人金币",
                     "coin_balance": coin_balance
                 }
                 ins_exange = insert(LCoinChange).values(insert_exchange)
