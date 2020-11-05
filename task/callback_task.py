@@ -137,7 +137,10 @@ async def fission_schema(connection, aimuser_id, task_coin, is_one=True):
         record_partner = await cursor_partner.fetchone()
         if record_partner:
             # 上级是合伙人,金币加入合伙人表
-            await cash_exchange_panrtner(connection, record_partner, amount, 1, is_one)
+            if is_one:
+                await cash_exchange_panrtner(connection, record_partner, amount, 1, is_one)
+            else:
+                await cash_exchange_panrtner(connection, record_partner, amount, 1, False)
         elif record_aimuser['referrer']:
             # 上级不是合伙人
             await cash_exchange(
@@ -165,8 +168,8 @@ async def fission_schema(connection, aimuser_id, task_coin, is_one=True):
 # 合伙人发放未入账金币
 async def cash_exchange_panrtner(connection, partner_info, amount, flow_type=1, is_one=True):
     # 查询当前用户金币
-    select_user_current_coin = select([MPartnerInfo]).where(
-        MPartnerInfo.user_id == partner_info['user_id']
+    select_user_current_coin = select([MUserInfo]).where(
+        MUserInfo.user_id == partner_info['user_id']
     )
     cursor_cur_coin = await connection.execute(select_user_current_coin)
     record_cur_coin = await cursor_cur_coin.fetchone()
@@ -174,9 +177,9 @@ async def cash_exchange_panrtner(connection, partner_info, amount, flow_type=1, 
 
         # 计算金币余额
         if flow_type == 1:
-            coin_balance = record_cur_coin['future_coin'] + amount
+            coin_balance = record_cur_coin['coin'] + amount
         else:
-            coin_balance = record_cur_coin['future_coin'] - amount
+            coin_balance = record_cur_coin['coin'] - amount
             if coin_balance <= 0:
                 logger.info("变更金币失败,余额不足")
         retry = 3
@@ -199,12 +202,12 @@ async def cash_exchange_panrtner(connection, partner_info, amount, flow_type=1, 
                 ins_exange = insert(LCoinChange).values(insert_exchange)
                 await connection.execute(ins_exange)
                 # 更改用户金币
-                update_user_coin = update(MPartnerInfo).values({
-                    "future_coin": coin_balance
+                update_user_coin = update(MUserInfo).values({
+                    "coin": coin_balance
                 }).where(
                     and_(
-                        MPartnerInfo.user_id == partner_info['user_id'],
-                        MPartnerInfo.future_coin == record_cur_coin['future_coin']
+                        MUserInfo.user_id == partner_info['user_id'],
+                        MUserInfo.coin == record_cur_coin['coin']
                     )
                 )
                 await connection.execute(update_user_coin)
