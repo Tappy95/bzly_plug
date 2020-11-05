@@ -488,7 +488,7 @@ async def today_user_sign(connection, user_id):
     rec_sign = await cur_sign.fetchone()
     sign_coin_from_dic = await get_pdictionary_key(connection, "sign_coin")
     sign_coin = eval(sign_coin_from_dic)
-    if rec_sign:
+    if rec_sign and rec_sign['sigh_time'] - int(time.time()*1000) < 86400000:
         next_stick_times = rec_sign['stick_times'] + 1
     else:
         next_stick_times = 1

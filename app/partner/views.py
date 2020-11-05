@@ -594,6 +594,12 @@ async def post_boost(request):
         )
         cur_check = await connection.execute(select_checkpoint)
         rec_check = await cur_check.fetchone()
+        select_is_boost = select([LCoinChange]).where(
+            LCoinChange.remarks == user_id
+        )
+        cur_boost = await connection.execute(select_is_boost)
+        rec_boost = await cur_boost.fetchone()
+        amount = 200 if rec_boost else randint(300, 1000)
         if rec_check:
             c_result = await cash_exchange(
                 connection,
