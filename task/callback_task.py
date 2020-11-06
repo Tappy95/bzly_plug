@@ -136,7 +136,7 @@ async def fission_schema(connection, aimuser_id, task_coin, is_one=True):
         cursor_partner = await connection.execute(select_is_partner)
         record_partner = await cursor_partner.fetchone()
         if record_partner:
-            # 上级是合伙人,金币加入合伙人表
+            # 上级是合伙人
             await cash_exchange_panrtner(connection, record_partner, amount, 1, is_one)
         elif record_aimuser['referrer']:
             # 上级不是合伙人
@@ -148,6 +148,12 @@ async def fission_schema(connection, aimuser_id, task_coin, is_one=True):
                 reason="裂变方案贡献",
                 remarks="徒弟贡献",
                 flow_type=1
+            )
+            await fission_schema(
+                connection,
+                aimuser_id=record_aimuser['referrer'],
+                task_coin=task_coin,
+                is_one=False
             )
         else:
             return True
@@ -488,7 +494,7 @@ async def today_user_sign(connection, user_id):
     rec_sign = await cur_sign.fetchone()
     sign_coin_from_dic = await get_pdictionary_key(connection, "sign_coin")
     sign_coin = eval(sign_coin_from_dic)
-    if rec_sign and rec_sign['sigh_time'] - int(time.time()*1000) < 86400000:
+    if rec_sign and rec_sign['sign_time'] - int(time.time()*1000) < 86400000:
         next_stick_times = rec_sign['stick_times'] + 1
     else:
         next_stick_times = 1
