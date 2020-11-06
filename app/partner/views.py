@@ -47,6 +47,8 @@ async def get_checkpoint(request):
             "current_coin": 0,
             "current_invite": 0,
             "current_points": 0,
+            "current_videos": 0,
+            "current_games": 0,
             "reward_amount": 0,
             "state": 0
         }))
@@ -91,6 +93,10 @@ async def get_checkpoint(request):
             "checkpoint_number": rec_point['checkpoint_number'],
             "current_coin": rec['current_coin'] if rec else 0,
             "gold_number": rec_point['gold_number'],
+            "current_videos": rec['current_videos'] if rec else 0,
+            "video_number": rec_point['video_number'],
+            "current_games": rec['current_games'] if rec else 0,
+            "game_number": rec_point['game_number'],
             "current_invite": rec['current_invite'] if rec else 0,
             "friends_number": rec_point['friends_number'],
             "current_points": rec['current_points'] if rec else 0,
@@ -206,6 +212,8 @@ async def post_checkpoint_point(request):
         "current_coin": 0,
         "current_invite": 0,
         "current_points": 0,
+        "current_videos": 0,
+        "current_games": 0,
         "reward_amount": 0,
         "state": 1
     }
@@ -321,7 +329,9 @@ async def post_checkpoint_card(request):
     rec_check = await cur_check.fetchone()
     if rec['current_coin'] < rec_check['gold_number'] or \
             rec['current_invite'] < rec_check['friends_number'] or \
-            rec['current_points'] < rec_check['friends_checkpoint_number']:
+            rec['current_points'] < rec_check['friends_checkpoint_number'] or \
+            rec['current_videos'] < rec_check['video_number'] or \
+            rec['current_games'] < rec_check['game_number']:
         return web.json_response({
             "code": 402,
             "message": "任务条件未达成"

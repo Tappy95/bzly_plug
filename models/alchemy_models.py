@@ -2089,6 +2089,8 @@ class MCheckpoint(Base):
     gold_number = Column(BIGINT(20), server_default=text("'0'"), comment='金币数')
     friends_number = Column(INTEGER(5), server_default=text("'0'"), comment='好友数')
     friends_checkpoint_number = Column(INTEGER(5), server_default=text("'0'"), comment='好友须完成关数')
+    video_number = Column(INTEGER(5), server_default=text("'0'"), comment='视频数')
+    game_number = Column(INTEGER(5), server_default=text("'0'"), comment='游戏任务数')
     admin_id = Column(String(50), nullable=False, comment='管理员')
     task_info = Column(String(255), nullable=False, comment='任务要求文字说明')
     create_time = Column(BIGINT(20), nullable=False, comment='创建时间')
@@ -2144,6 +2146,8 @@ class MCheckpointRecord(Base):
     current_coin = Column(INTEGER(11), comment='闯关周期内赚取金币数')
     current_invite = Column(INTEGER(11), comment='闯关周期内邀请人数')
     current_points = Column(INTEGER(11), comment='闯关周期内下属总闯关数')
+    current_videos = Column(INTEGER(5), comment='闯关周期内视频赚数目')
+    current_games = Column(INTEGER(5), comment='闯关周期内游戏赚数目')
     reward_amount = Column(DECIMAL(8, 2), nullable=False, server_default=text("'0.00'"), comment='过关奖励')
     state = Column(INTEGER(2), nullable=False, server_default=text("'0'"), comment='关卡状态:0=闯关中,1=已过关')
 

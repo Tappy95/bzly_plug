@@ -390,11 +390,36 @@ def update_checkpoint_record():
             )).fetchall()
             currnet_friends_points = len(select_student_record)
 
+            # 查询用户时间段内的视频数
+            select_videos = conn.execute(select([LCoinChange]).where(
+                and_(
+                    LCoinChange.user_id == user['user_id'],
+                    LCoinChange.flow_type == 1,
+                    LCoinChange.changed_time > user['create_time'],
+                    LCoinChange.changed_time < int(time.time() * 1000),
+                    LCoinChange.changed_type == 30
+                )
+            )).fetchall()
+            current_videos = len(select_videos)
+            # 查询用户时间段内的游戏任务数
+            select_games = conn.execute(select([LCoinChange]).where(
+                and_(
+                    LCoinChange.user_id == user['user_id'],
+                    LCoinChange.flow_type == 1,
+                    LCoinChange.changed_time > user['create_time'],
+                    LCoinChange.changed_time < int(time.time() * 1000),
+                    LCoinChange.changed_type == 7
+                )
+            )).fetchall()
+            current_games = len(select_games)
+
             conn.execute(update(MCheckpointRecord).values(
                 {
                     "current_coin": current_coin,
                     "current_invite": current_invite,
                     "current_points": currnet_friends_points,
+                    "current_games": current_games,
+                    "current_videos": current_videos,
                 }
             ).where(
                 and_(
