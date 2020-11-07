@@ -229,7 +229,7 @@ def sync_channel_partner():
                 MUserInfo.mobile == dict[admin]
             )).fetchone()
             admin_id = select_channel_admin['user_id']
-
+            logger.info(admin_id)
             # 更新合伙人状态
             conn.execute(update(MPartnerInfo).values({
                 "status": 1
@@ -294,4 +294,4 @@ if __name__ == '__main__':
     # loop.run_until_complete(get_ibx_tasks())
 
     # 多游游戏获取
-    fix_low_coin_change()
+    sync_channel_partner()

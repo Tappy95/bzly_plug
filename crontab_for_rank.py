@@ -218,12 +218,12 @@ def insert_new_partner():
 def update_leader():
     print("wake up update_leader")
     with engine.connect() as conn:
-        select_partner = conn.execute(select([MPartnerInfo])).fetchall()
-        for partner in select_partner:
+        select_partner = conn.execute(select([MPartnerInfo]).where(
+            MPartnerInfo.status == 1
             # 有效合伙人
-            if partner['status'] == 1:
-                # 查询有效合伙人在leader表的下级
-                update_leader_id(conn, partner['user_id'], partner['user_id'])
+        )).fetchall()
+        for partner in select_partner:
+            update_leader_id(conn, partner['user_id'], partner['user_id'])
     print("done update leaders")
 
 
@@ -286,9 +286,9 @@ def update_partner_status():
             if select_the_partner['status'] == 1:
                 # 已经成为合伙人.
                 # 到期
-                if enddate >= datetime.now():
+                if enddate < datetime.now():
                     if len(select_activity) >= int(activity_limit) \
-                            and all_invite_user >= invite_limit:
+                            and all_invite_user >= int(invite_limit):
                         # 任务完成
                         status = 1
                     else:
@@ -300,16 +300,16 @@ def update_partner_status():
             # 原本非合伙人
             else:
                 if len(select_activity) >= int(activity_limit) \
-                        and all_invite_user >= invite_limit:
+                        and all_invite_user >= int(invite_limit):
                     # 任务完成
                     status = 1
                 else:
                     # 任务未完成
                     status = 0
             if enddate >= datetime.now():
-                nextdate = enddate + timedelta(days=7)
-            else:
                 nextdate = enddate
+            else:
+                nextdate = enddate + timedelta(days=7)
             conn.execute(update(MPartnerInfo).values(
                 {
                     # 活跃度
@@ -496,8 +496,8 @@ if __name__ == '__main__':
     scheduler.add_job(update_enddate_invite, "interval", minutes=10)
     scheduler.add_job(insert_new_partner, "interval", minutes=5)
     scheduler.add_job(update_activity, "interval", minutes=20)
-    scheduler.add_job(update_partner_status, "interval", hours=4)
-    scheduler.add_job(update_leader, "interval", hours=4)
+    scheduler.add_job(update_partner_status, "interval", hours=4, next_run_time=datetime.now())
+    scheduler.add_job(update_leader, "interval", hours=4, next_run_time=datetime.now())
     scheduler.add_job(update_checkpoint_record, "interval", minutes=2)
     scheduler.add_job(update_user_qilin, "interval", minutes=2)
     scheduler.add_job(update_user_leader, "interval", minutes=5)

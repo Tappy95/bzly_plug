@@ -170,12 +170,21 @@ def update_leader_id(connection, referrer_id, leader_id):
         )
     )).fetchall()
     if select_low_user:
+        # low_user 的目前leader是即将更新得leader的下级.则不更新
+        select_leader_students = connection.execute(select([MUserLeader]).where(
+            and_(
+                MUserLeader.leader_id == leader_id
+            )
+        )).fetchall()
+        students_ids = [student['user_id'] for student in select_leader_students]
         for low_user in select_low_user:
+            if low_user['leader_id'] in students_ids:
+                continue
             connection.execute(update(MUserLeader).values({
                 "leader_id": leader_id
             }).where(
                 MUserLeader.user_id == low_user['user_id']
             ))
-            return update_leader_id(connection, low_user['user_id'], leader_id)
+        return update_leader_id(connection, low_user['user_id'], leader_id)
     else:
         return True
