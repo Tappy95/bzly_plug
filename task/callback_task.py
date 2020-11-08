@@ -567,6 +567,8 @@ async def today_user_sign(connection, user_id):
     )
     cur_sign = await connection.execute(select_user_sign)
     rec_sign = await cur_sign.fetchone()
+    if rec_sign['sign_time'] > lastYesdaytime:
+        return False
     sign_coin_from_dic = await get_pdictionary_key(connection, "sign_coin")
     sign_coin = eval(sign_coin_from_dic)
     now = datetime.now()

@@ -1134,6 +1134,11 @@ async def get_current_day_video_reward(request):
             c_result = await today_user_sign(connection, user_id)
             if c_result:
                 toast = "签到成功"
+            else:
+                return web.json_response({
+                    "code": 400,
+                    "message": "签到失败,请联系管理员"
+                })
         else:
             # 发放视频奖励
             toast = "视频奖励"

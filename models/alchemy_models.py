@@ -2160,3 +2160,16 @@ class LLeaderChange(Base):
     total_reward = Column(INTEGER(11), comment='当日总收益')
     active_user = Column(INTEGER(11), comment='活跃人数')
     update_time = Column(DateTime)
+
+
+class LPartnerChange(Base):
+    __tablename__ = 'l_partner_change'
+
+    partner_id = Column(String(32), primary_key=True, nullable=False, comment='合伙人ID')
+    create_time = Column(DateTime, primary_key=True, nullable=False, comment='创建时间')
+    one_reward = Column(INTEGER(11), comment='来自一级下属合伙人的收益')
+    two_reward = Column(INTEGER(11), comment='来自二级下属合伙人的收益')
+    two_count = Column(INTEGER(11), comment='二级下属合伙人')
+    one_count = Column(INTEGER(11), comment='一级下属合伙人')
+    active_partner = Column(INTEGER(11), comment='活跃的下属合伙人')
+    update_time = Column(DateTime, comment='更新时间')

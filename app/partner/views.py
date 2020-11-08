@@ -15,7 +15,8 @@ from sqlalchemy.dialects.mysql import insert
 
 from models.alchemy_models import MUserInfo, t_tp_pcdd_callback, PDictionary, t_tp_xw_callback, TpTaskInfo, \
     t_tp_ibx_callback, TpJxwCallback, TpYwCallback, TpDyCallback, TpZbCallback, LCoinChange, MChannelInfo, MChannel, \
-    MCheckpointRecord, MCheckpoint, MCheckpointIncome, MCheckpointIncomeChange, MUserLeader, LLeaderChange
+    MCheckpointRecord, MCheckpoint, MCheckpointIncome, MCheckpointIncomeChange, MUserLeader, LLeaderChange, \
+    LPartnerChange, MPartnerInfo
 from task.callback_task import fission_schema, cash_exchange, select_user_id, get_channel_user_ids, get_callback_infos
 from task.check_sign import check_xw_sign, check_ibx_sign, check_jxw_sign, check_yw_sign, check_dy_sign, check_zb_sign
 from util.log import logger
@@ -93,9 +94,9 @@ async def get_checkpoint(request):
             "checkpoint_number": rec_point['checkpoint_number'],
             "current_coin": rec['current_coin'] if rec else 0,
             "gold_number": rec_point['gold_number'],
-            "current_videos": rec['current_videos'] if rec['current_videos'] else 0,
+            "current_videos": rec['current_videos'] if rec and rec['current_videos'] else 0,
             "video_number": rec_point['video_number'],
-            "current_games": rec['current_games'] if rec['current_games'] else 0,
+            "current_games": rec['current_games'] if rec and rec['current_games'] else 0,
             "game_number": rec_point['game_number'],
             "current_invite": rec['current_invite'] if rec else 0,
             "friends_number": rec_point['friends_number'],
@@ -203,7 +204,7 @@ async def post_checkpoint_point(request):
         MCheckpoint.checkpoint_number == int(r_json['checkpoint_number'])
     )
     cur_checkpoint = await connection.execute(select_checkpoint)
-    rec_checkpoint = cur_checkpoint.fetchone()
+    rec_checkpoint = await cur_checkpoint.fetchone()
     record_info = {
         "user_id": user_id,
         "checkpoint_number": r_json['checkpoint_number'],
@@ -418,6 +419,76 @@ async def get_reward(request):
     })
 
 
+# 主页统计表
+@routes.get('/partner/index')
+async def get_partner_index(request):
+    token = request.query.get('token')
+    connection = request['db_connection']
+    user_id = await select_user_id(connection, token)
+    # 查询leader收益
+    select_leader_change = select([LCoinChange]).where(
+        and_(
+            LCoinChange.user_id == user_id,
+            or_(
+                LCoinChange.changed_type == 35,
+                LCoinChange.changed_type == 36,
+            )
+        )
+    )
+    cur_l_change = await connection.execute(select_leader_change)
+    rec_l_change = await cur_l_change.fetchall()
+    teamBenefit = 0
+    if rec_l_change:
+        teamBenefit = sum([change['amount'] for change in rec_l_change])
+    # 查询partner收益
+    select_partner_change = select([LPartnerChange]).where(
+        LPartnerChange.partner_id == user_id
+    )
+    cur_p_change = await connection.execute(select_partner_change)
+    rec_p_change = await cur_p_change.fetchall()
+    sum_partner_reward = 0
+    for partner_change in rec_p_change:
+        sum_partner_reward += partner_change['one_reward']
+        sum_partner_reward += partner_change['two_reward']
+    teamBenefit += sum_partner_reward
+    # 查询leader下级人数
+    select_leader = select([MUserLeader]).where(
+        MUserLeader.leader_id == user_id
+    )
+    cur_leader = await connection.execute(select_leader)
+    rec_leader = await cur_leader.fetchall()
+
+    # 查询当前Muserinfo
+    select_muser = select([MUserInfo]).where(
+        MUserInfo.user_id == user_id
+    )
+    cur = await connection.execute(select_muser)
+    rec = await cur.fetchone()
+    json_result = {
+        "data": {
+            "isRenewal": 2,
+            "teamBenefit": teamBenefit if rec_l_change else 0,
+            "ordinaryRewardImg": "http://qiniu.shouzhuan518.com/小麒麟规则.png",
+            "photo": rec['profile'] if rec and rec['profile'] else "https://image.bzlyplay.com/default_img.png",
+            "inviteImg": "http://qiniu.shouzhuan518.com/pro_20201009163222476.png",
+            "roleType": rec['role_type'],
+            "accountId": rec['account_id'],
+            "teamRewardImg": "http://qiniu.shouzhuan518.com/金麒麟规则.png",
+            "qrCode": rec['qr_code'],
+            "highRole": rec['high_role'],
+            "price": 999,
+            "darenRewardImg": "http://qiniu.shouzhuan518.com/玉麒麟规则.png",
+            "surplusTime": 0,
+            "schemeImg": "http://qiniu.shouzhuan518.com/pro_202010091631585262.png",
+            "apprentice": len(rec_leader)
+        },
+        "message": "操作成功",
+        "statusCode": "2000",
+        "token": token
+    }
+    return web.json_response(json_result)
+
+
 # 团队奖励统计
 @routes.get('/partner/reward_detail')
 async def get_partner_reward_detail(request):
@@ -449,18 +520,30 @@ async def get_partner_reward_detail(request):
     cur_change = await connection.execute(select_change)
     rec_change = await cur_change.fetchall()
     teamBenefit = sum([change['amount'] for change in rec_change])
+
+    # 查询合伙人情况
+    select_partner_change = select([LPartnerChange]).where(
+        LPartnerChange.partner_id == user_id
+    ).order_by(LPartnerChange.create_time.desc())
+    cur_p_change = await connection.execute(select_partner_change)
+    rec_p_chenge = await cur_p_change.fetchall()
+    sum_total_reward = 0
+    for row in rec_p_chenge:
+        sum_total_reward += row['one_reward']
+        sum_total_reward += row['two_reward']
     json_result = {
         "data": {
             "reward": 1,
             "teamBenefit": teamBenefit if rec_change else 0,  # 我的团队总收益->金币
             "directProfit": 3,
             "drReward": teamBenefit if rec_change else 0,  # 团队详情->收益->金币
-            "ordinaryProfit": 5,
+            "ordinaryProfit": sum_total_reward,  # 合伙人累计收益
             "directPeopleNum": 6,
             "highVipAmount": 7,
             "indirectPeopleNum": 8,
             "additionalProfit": 9,
-            "ordinaryPeopleNum": 10,
+            "ordinaryPeopleNum": rec_p_chenge[0]['one_count'] + rec_p_chenge[0]['two_count'] if rec_p_chenge else 0,
+            # 合伙人数
             "isiIndirectProfit": 12,
             "highVipCount": 13,
             "indirectProfit": 14,
@@ -533,15 +616,17 @@ async def get_partner_team_detail(request):
     floor_dict = {
         '1': "35",
         '2': "36",
-        '3': ""
+        '3': "38"
     }
     name_dict = {
         35: "直属一级奖励",
         36: "直属二级奖励",
+        38: "直属二级以下奖励",
     }
     # 查询一二级下级流水表
     coditions = []
-    coditions.append(or_(LCoinChange.changed_type == 35, LCoinChange.changed_type == 36))
+    coditions.append(
+        or_(LCoinChange.changed_type == 35, LCoinChange.changed_type == 36, LCoinChange.changed_type == 38))
     if user_id:
         coditions.append(LCoinChange.user_id == user_id)
     # if 'friend_floor' in params and floor_dict[params['friend_floor']]:
@@ -554,6 +639,7 @@ async def get_partner_team_detail(request):
     list_info = []
     sum_1 = 0
     sum_2 = 0
+    sum_3 = 0
     for row in rec:
         result = {
             "id": row['id'],
@@ -569,6 +655,10 @@ async def get_partner_team_detail(request):
             sum_2 += row['amount']
             if 'friend_floor' in params and params['friend_floor'] == '2':
                 list_info.append(result)
+        elif row['changed_type'] == 38:
+            sum_3 += row['amount']
+            if 'friend_floor' in params and params['friend_floor'] == '3':
+                list_info.append(result)
         if 'friend_floor' not in params:
             list_info.append(result)
     json_result = {
@@ -577,7 +667,7 @@ async def get_partner_team_detail(request):
             "list": list_info,
             "sum_1": sum_1,
             "sum_2": sum_2,
-            "sum_3": 0
+            "sum_3": sum_3
         },
         "message": "操作成功",
         "statusCode": "2000",
@@ -678,7 +768,28 @@ async def get_agent_detail(request):
     token = request.query.get('token')
     connection = request['db_connection']
     user_id = await select_user_id(connection, token)
+    select_partner_change = select([LPartnerChange]).where(
+        LPartnerChange.partner_id == user_id
+    ).order_by(LPartnerChange.create_time.desc())
+    cur = await connection.execute(select_partner_change)
+    rec = await cur.fetchall()
+    list_info = []
+    sum_total_reward = 0
 
+    for row in rec:
+        result = {
+            "apprenticeCount": row['active_partner'],
+            "drPeopleNum": "20000",
+            "drReward": "10000",
+            "firstReward": row['one_reward'],
+            "per": "0",
+            "secondReward": row['two_reward'],
+            "total": 0,
+            "updateTime": row['create_time'].strftime('%Y-%m-%d')
+        }
+        sum_total_reward += row['one_reward']
+        sum_total_reward += row['two_reward']
+        list_info.append(result)
     json_result = {
         "data": {
             "lastPage": 0,
@@ -689,18 +800,9 @@ async def get_agent_detail(request):
             "nextPage": 0,
             "endRow": 0,
             "pageSize": 10,
-            "list": [{
-                "apprenticeCount": 0,
-                "drPeopleNum": "20000",
-                "drReward": "10000",
-                "firstReward": 0,
-                "per": "0",
-                "secondReward": 0,
-                "total": 0,
-                "updateTime": "2020-11-02",
-            }],
-            "total_reward": 0,  # 累计收益
-            "partner_count": 0,  # 合伙人数
+            "list": list_info,
+            "total_reward": sum_total_reward,  # 累计收益
+            "partner_count": rec[0]['one_count'] + rec[0]['two_count'],  # 合伙人数
             "pageNum": 1,
             "navigatePages": 8,
             "navigateFirstPage": 0,
@@ -715,6 +817,6 @@ async def get_agent_detail(request):
         },
         "message": "操作成功",
         "statusCode": "2000",
-        "token": "d03a4615f463682559fc5bef38bbadbb"
+        "token": token
     }
     return web.json_response(json_result)
