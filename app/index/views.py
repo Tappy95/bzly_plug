@@ -249,11 +249,14 @@ async def get_pcddcallback(request):
             remarks=pcdd_callback_params['adname'],
             flow_type=1
         )
-        fs_result = await fission_schema(
-            connection,
-            aimuser_id=pcdd_callback_params['userid'],
-            task_coin=task_coin
-        )
+        if "充值" not in pcdd_callback_params['adname']:
+            fs_result = await fission_schema(
+                connection,
+                aimuser_id=pcdd_callback_params['userid'],
+                task_coin=task_coin
+            )
+        else:
+            fs_result = True
         if cash_result and fs_result:
             update_callback_status = update(t_tp_pcdd_callback).values({
                 "status": 2
@@ -356,11 +359,14 @@ async def get_xwcallback(request):
             remarks=callback_params['adname'],
             flow_type=1
         )
-        fs_result = await fission_schema(
-            connection,
-            aimuser_id=callback_params['appsign'],
-            task_coin=task_coin
-        )
+        if "充值" not in callback_params['adname']:
+            fs_result = await fission_schema(
+                connection,
+                aimuser_id=callback_params['appsign'],
+                task_coin=task_coin
+            )
+        else:
+            fs_result = True
         if c_result and fs_result:
             update_callback_status = update(t_tp_xw_callback).values({
                 "status": 1
@@ -460,11 +466,15 @@ async def get_ibxcallback(request):
             remarks=callback_params['game_name'],
             flow_type=1
         )
-        fs_result = await fission_schema(
-            connection,
-            aimuser_id=callback_params['target_id'],
-            task_coin=task_coin
-        )
+        if "充值" not in callback_params['game_name']:
+            fs_result = await fission_schema(
+                connection,
+                aimuser_id=callback_params['target_id'],
+                task_coin=task_coin
+            )
+        else:
+            fs_result = True
+
         if c_result and fs_result:
             update_callback_status = update(t_tp_ibx_callback).values({
                 "status": 1
@@ -566,11 +576,15 @@ async def post_ibxtaskcallback(request):
             remarks=callback_params['content'],
             flow_type=1
         )
-        fs_result = await fission_schema(
-            connection,
-            aimuser_id=callback_params['target_id'],
-            task_coin=task_coin
-        )
+        if "充值" not in callback_params['content']:
+            fs_result = await fission_schema(
+                connection,
+                aimuser_id=callback_params['target_id'],
+                task_coin=task_coin
+            )
+        else:
+            fs_result = True
+
         if c_result and fs_result:
             update_callback_status = update(t_tp_ibx_callback).values({
                 "status": 1
@@ -701,11 +715,15 @@ async def get_jxwcallback(request):
                 remarks=deal['name'] + deal['title'],
                 flow_type=1
             )
-            fs_result = await fission_schema(
-                connection,
-                aimuser_id=deal['resource_id'],
-                task_coin=task_coin
-            )
+            if "充值" not in deal['title']:
+                fs_result = await fission_schema(
+                    connection,
+                    aimuser_id=deal['resource_id'],
+                    task_coin=task_coin
+                )
+            else:
+                fs_result = True
+
             if c_result and fs_result:
                 update_callback_status = update(TpJxwCallback).values({
                     "status": 1
@@ -813,11 +831,15 @@ async def post_ywcallback(request):
             remarks=deal['advertName'] + deal['rewardRule'],
             flow_type=1
         )
-        fs_result = await fission_schema(
-            connection,
-            aimuser_id=deal['mediaUserId'],
-            task_coin=task_coin
-        )
+        if "充值" not in deal['title']:
+            fs_result = await fission_schema(
+                connection,
+                aimuser_id=deal['rewardRule'],
+                task_coin=task_coin
+            )
+        else:
+            fs_result = True
+
 
         if c_result and fs_result:
             update_callback_status = update(TpYwCallback).values({
@@ -927,11 +949,15 @@ async def get_dycallback(request):
             remarks=deal['advert_name'] + deal['content'],
             flow_type=1
         )
-        fs_result = await fission_schema(
-            connection,
-            aimuser_id=deal['user_id'],
-            task_coin=task_coin
-        )
+        if "充值" not in deal['content']:
+            fs_result = await fission_schema(
+                connection,
+                aimuser_id=deal['user_id'],
+                task_coin=task_coin
+            )
+        else:
+            fs_result = True
+
         if c_result and fs_result:
             update_callback_status = update(TpDyCallback).values({
                 "status": 1
@@ -1043,11 +1069,15 @@ async def post_zbcallback(request):
             remarks=deal['title'] + deal['msg'],
             flow_type=1
         )
-        fs_result = await fission_schema(
-            connection,
-            aimuser_id=deal['uid'],
-            task_coin=task_coin
-        )
+        if "充值" not in deal['msg']:
+            fs_result = await fission_schema(
+                connection,
+                aimuser_id=deal['uid'],
+                task_coin=task_coin
+            )
+        else:
+            fs_result = True
+
         if c_result and fs_result:
             update_callback_status = update(TpZbCallback).values({
                 "status": 1
@@ -1155,6 +1185,7 @@ async def get_current_day_video_reward(request):
 
 
 # 回调重发,全平台
+# TODO: 备注信息->充值
 @routes.get('/recallback')
 async def restart_callback(request):
     platform = request.query.get("platform")

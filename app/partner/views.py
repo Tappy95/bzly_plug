@@ -93,9 +93,9 @@ async def get_checkpoint(request):
             "checkpoint_number": rec_point['checkpoint_number'],
             "current_coin": rec['current_coin'] if rec else 0,
             "gold_number": rec_point['gold_number'],
-            "current_videos": rec['current_videos'] if rec else 0,
+            "current_videos": rec['current_videos'] if rec['current_videos'] else 0,
             "video_number": rec_point['video_number'],
-            "current_games": rec['current_games'] if rec else 0,
+            "current_games": rec['current_games'] if rec['current_games'] else 0,
             "game_number": rec_point['game_number'],
             "current_invite": rec['current_invite'] if rec else 0,
             "friends_number": rec_point['friends_number'],
@@ -383,8 +383,8 @@ async def get_reward(request):
     cash = int(params['cash'])
     if cash != 10:
         return web.json_response({
-            "code":400,
-            "message":"导入金额不合法，满10元提现"
+            "code": 400,
+            "message": "导入金额不合法，满10元提现"
         })
     connection = request['db_connection']
     user_id = await select_user_id(connection, params['token'])
@@ -544,8 +544,8 @@ async def get_partner_team_detail(request):
     coditions.append(or_(LCoinChange.changed_type == 35, LCoinChange.changed_type == 36))
     if user_id:
         coditions.append(LCoinChange.user_id == user_id)
-    if 'friend_floor' in params and floor_dict[params['friend_floor']]:
-        coditions.append(LCoinChange.changed_type == int(floor_dict[params['friend_floor']]))
+    # if 'friend_floor' in params and floor_dict[params['friend_floor']]:
+    #     coditions.append(LCoinChange.changed_type == int(floor_dict[params['friend_floor']]))
     print(coditions)
     select_coin_change = select([LCoinChange]).where(and_(*coditions)).order_by(LCoinChange.changed_time.desc())
     cur = await connection.execute(select_coin_change)
@@ -555,18 +555,22 @@ async def get_partner_team_detail(request):
     sum_1 = 0
     sum_2 = 0
     for row in rec:
-        if row['changed_type'] == 35:
-            sum_1 += row['amount']
-        elif row['changed_type'] == 36:
-            sum_2 += row['amount']
         result = {
             "id": row['id'],
             "friend_floor": name_dict[row['changed_type']],
             "reward_time": row['changed_time'],
             "reward": row['amount']
         }
-        list_info.append(result)
-
+        if row['changed_type'] == 35:
+            sum_1 += row['amount']
+            if 'friend_floor' in params and params['friend_floor'] == '1':
+                list_info.append(result)
+        elif row['changed_type'] == 36:
+            sum_2 += row['amount']
+            if 'friend_floor' in params and params['friend_floor'] == '2':
+                list_info.append(result)
+        if 'friend_floor' not in params:
+            list_info.append(result)
     json_result = {
         "data": {
             "total": len(list_info),
@@ -666,3 +670,51 @@ async def post_boost(request):
             "code": 400,
             "message": "无上级合伙人可助力"
         })
+
+
+# 下级代理收益
+@routes.get('/partner/agent_detail')
+async def get_agent_detail(request):
+    token = request.query.get('token')
+    connection = request['db_connection']
+    user_id = await select_user_id(connection, token)
+
+    json_result = {
+        "data": {
+            "lastPage": 0,
+            "navigatepageNums": [],
+            "startRow": 0,
+            "hasNextPage": False,
+            "prePage": 0,
+            "nextPage": 0,
+            "endRow": 0,
+            "pageSize": 10,
+            "list": [{
+                "apprenticeCount": 0,
+                "drPeopleNum": "20000",
+                "drReward": "10000",
+                "firstReward": 0,
+                "per": "0",
+                "secondReward": 0,
+                "total": 0,
+                "updateTime": "2020-11-02",
+            }],
+            "total_reward": 0,  # 累计收益
+            "partner_count": 0,  # 合伙人数
+            "pageNum": 1,
+            "navigatePages": 8,
+            "navigateFirstPage": 0,
+            "total": 0,
+            "pages": 0,
+            "firstPage": 0,
+            "size": 0,
+            "isLastPage": True,
+            "hasPreviousPage": False,
+            "navigateLastPage": 0,
+            "isFirstPage": True
+        },
+        "message": "操作成功",
+        "statusCode": "2000",
+        "token": "d03a4615f463682559fc5bef38bbadbb"
+    }
+    return web.json_response(json_result)

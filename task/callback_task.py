@@ -1,6 +1,7 @@
 # 麒麟分佣任务
 import asyncio
 import time
+from datetime import datetime, timedelta
 
 from sqlalchemy import select, update, insert, and_, text, or_
 
@@ -24,7 +25,7 @@ async def cash_exchange(connection, user_id, amount, changed_type, reason, remar
     9-新人注册奖励10任务11出题12兑换闯关奖励 13-阅读资讯14-提现退回15直属用户返利 16-团队长赠送17间接用户返利18居间返利
     19-阅读广告奖励 20-分享资讯 21-签到赚 22-大众团队长分佣 23-快速赚任务 24-达人首次奖励 25-达人后续奖励 26-阅读小说
     27 达人邀请周榜奖励 28-高额赚提成 29 每日红包任务 30观看视频 31 小游戏奖励 32打卡消耗33打卡奖励 34 金币排行日榜奖励
-    35 合伙人一级直属用户贡献 36 合伙人二级直属用户贡献 37 闯关助力
+    35 合伙人一级直属用户贡献 36 合伙人二级直属用户贡献 37 闯关助力 38 合伙人二级以下直属用户贡献
     :param remarks: 标识信息
     :param reason: 理由
     :return:
@@ -116,13 +117,15 @@ async def fission_schema(connection, aimuser_id, task_coin, is_one=True):
     two_commission = float(rec_f_c['two_commission'])
 
     # 查询上级ID
-    select_user_referrer = select([MUserInfo]).where(
-        MUserInfo.user_id == aimuser_id
+    select_user_referrer = select([MUserLeader]).where(
+        MUserLeader.user_id == aimuser_id
     )
     cursor_aimuser = await connection.execute(select_user_referrer)
     record_aimuser = await cursor_aimuser.fetchone()
 
     amount = one_commission / 100 * task_coin if is_one else two_commission / 100 * task_coin
+
+    await cash_exchange_leader(connection, aimuser_id, record_aimuser['leader_id'], two_commission / 100 * task_coin)
 
     if record_aimuser:
         # 根据上级ID下发徒弟贡献金币变更任务
@@ -168,7 +171,7 @@ async def fission_schema(connection, aimuser_id, task_coin, is_one=True):
     return True
 
 
-# 合伙人发放未入账金币
+# 合伙人发放入账金币
 async def cash_exchange_panrtner(connection, partner_info, amount, flow_type=1, is_one=True):
     # 查询当前用户金币
     select_user_current_coin = select([MUserInfo]).where(
@@ -211,6 +214,78 @@ async def cash_exchange_panrtner(connection, partner_info, amount, flow_type=1, 
                     and_(
                         MUserInfo.user_id == partner_info['user_id'],
                         MUserInfo.coin == record_cur_coin['coin']
+                    )
+                )
+                await connection.execute(update_user_coin)
+                return True
+            except Exception as e:
+                logger.info(e)
+                logger.info("修改金币失败,请联系管理员")
+                retry -= 1
+        return False
+    else:
+        return False
+
+
+# 合伙人发放未入账金币
+async def cash_exchange_leader(connection, aimuser_id, leader_id, amount, flow_type=1):
+    # 确认用户属于二级以下:
+    select_ones = select([MUserLeader]).where(
+        MUserLeader.referrer == leader_id
+    )
+    cur_one = await connection.execute(select_ones)
+    rec_one = await cur_one.fetchall()
+    one_ids = [one['user_id'] for one in rec_one]
+    select_two = select([MUserLeader]).where(
+        MUserLeader.referrer.in_(one_ids)
+    )
+    cur_two = await connection.execute(select_two)
+    rec_two = await cur_two.fetchall()
+    two_ids = [two['user_id'] for two in rec_two]
+    if aimuser_id in one_ids or aimuser_id in two_ids:
+        return
+
+    # 查询当前用户金币
+    select_user_current_coin = select([MPartnerInfo]).where(
+        MPartnerInfo.user_id == leader_id
+    )
+    cursor_cur_coin = await connection.execute(select_user_current_coin)
+    record_cur_coin = await cursor_cur_coin.fetchone()
+    if record_cur_coin:
+
+        # 计算金币余额
+        if flow_type == 1:
+            coin_balance = record_cur_coin['future_coin'] + amount
+        else:
+            coin_balance = record_cur_coin['future_coin'] - amount
+            if coin_balance <= 0:
+                logger.info("变更金币失败,余额不足")
+        retry = 3
+        # activity = record_cur_coin['activity_points'] + 1
+        while retry:
+            try:
+                # 插入金币变更信息
+                insert_exchange = {
+                    "user_id": leader_id,
+                    "amount": amount,
+                    "flow_type": flow_type,
+                    "changed_type": 38,
+                    "changed_time": int(round(time.time() * 1000)),
+                    "status": 1,
+                    "account_type": 0,
+                    "reason": "下级用户贡献",
+                    "remarks": "合伙人未入账金币(二级以下用户贡献)",
+                    "coin_balance": coin_balance
+                }
+                ins_exange = insert(LCoinChange).values(insert_exchange)
+                await connection.execute(ins_exange)
+                # 更改用户金币
+                update_user_coin = update(MPartnerInfo).values({
+                    "future_coin": coin_balance
+                }).where(
+                    and_(
+                        MPartnerInfo.user_id == leader_id,
+                        MPartnerInfo.future_coin == record_cur_coin['future_coin']
                     )
                 )
                 await connection.execute(update_user_coin)
@@ -494,7 +569,14 @@ async def today_user_sign(connection, user_id):
     rec_sign = await cur_sign.fetchone()
     sign_coin_from_dic = await get_pdictionary_key(connection, "sign_coin")
     sign_coin = eval(sign_coin_from_dic)
-    if rec_sign and rec_sign['sign_time'] - int(time.time()*1000) < 86400000:
+    now = datetime.now()
+    lastYesday = now - timedelta(hours=now.hour, minutes=now.minute, seconds=now.second, microseconds=now.microsecond)
+    # 获取23:59:59
+    zeroYesday = lastYesday - timedelta(hours=23, minutes=59, seconds=59)
+    zeroYesdaytime = time.mktime(zeroYesday.timetuple()) * 1000
+    lastYesdaytime = time.mktime(lastYesday.timetuple()) * 1000
+    # if rec_sign and int(time.time()*1000) - rec_sign['sign_time'] < 86400000:
+    if rec_sign and zeroYesdaytime < rec_sign['sign_time'] < lastYesdaytime:
         next_stick_times = rec_sign['stick_times'] + 1
     else:
         next_stick_times = 1
