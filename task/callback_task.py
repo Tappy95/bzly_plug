@@ -567,8 +567,7 @@ async def today_user_sign(connection, user_id):
     )
     cur_sign = await connection.execute(select_user_sign)
     rec_sign = await cur_sign.fetchone()
-    if rec_sign['sign_time'] > lastYesdaytime:
-        return False
+
     sign_coin_from_dic = await get_pdictionary_key(connection, "sign_coin")
     sign_coin = eval(sign_coin_from_dic)
     now = datetime.now()
@@ -577,6 +576,8 @@ async def today_user_sign(connection, user_id):
     zeroYesday = lastYesday - timedelta(hours=23, minutes=59, seconds=59)
     zeroYesdaytime = time.mktime(zeroYesday.timetuple()) * 1000
     lastYesdaytime = time.mktime(lastYesday.timetuple()) * 1000
+    if rec_sign and rec_sign['sign_time'] > lastYesdaytime:
+        return False
     # if rec_sign and int(time.time()*1000) - rec_sign['sign_time'] < 86400000:
     if rec_sign and zeroYesdaytime < rec_sign['sign_time'] < lastYesdaytime:
         next_stick_times = rec_sign['stick_times'] + 1
