@@ -802,7 +802,7 @@ async def get_agent_detail(request):
             "pageSize": 10,
             "list": list_info,
             "total_reward": sum_total_reward,  # 累计收益
-            "partner_count": rec[0]['one_count'] + rec[0]['two_count'],  # 合伙人数
+            "partner_count": rec[0]['one_count'] + rec[0]['two_count'] if rec else 0,  # 合伙人数
             "pageNum": 1,
             "navigatePages": 8,
             "navigateFirstPage": 0,

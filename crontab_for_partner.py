@@ -91,6 +91,7 @@ def update_partner_reward():
                 "active_partner": active_user,
                 "one_count": one_count,
                 "two_count": two_count,
+                "is_reward": 0,
                 "update_time": now
             }
             # 更新当日汇总表
@@ -104,6 +105,7 @@ def update_partner_reward():
                 active_partner=insert_stmt.inserted.active_partner,
                 one_count=insert_stmt.inserted.one_count,
                 two_count=insert_stmt.inserted.two_count,
+                is_reward=insert_stmt.inserted.is_reward,
                 update_time=insert_stmt.inserted.update_time
             )
             conn.execute(on_duplicate_key_stmt)

@@ -2171,5 +2171,6 @@ class LPartnerChange(Base):
     two_reward = Column(INTEGER(11), comment='来自二级下属合伙人的收益')
     two_count = Column(INTEGER(11), comment='二级下属合伙人')
     one_count = Column(INTEGER(11), comment='一级下属合伙人')
+    is_reward = Column(INTEGER(2), comment='是否发奖成功')
     active_partner = Column(INTEGER(11), comment='活跃的下属合伙人')
     update_time = Column(DateTime, comment='更新时间')
