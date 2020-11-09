@@ -186,11 +186,11 @@ async def post_checkpoint_point(request):
     user_id = await select_user_id(connection, r_json['token'])
     print(user_id)
     # 查询当前关数
-    select_current_point = select([MCheckpointRecord]).where(
-        MCheckpointRecord.user_id == user_id
-    ).order_by(MCheckpointRecord.checkpoint_number.desc())
-    cur_current = await connection.execute(select_current_point)
-    rec_current = await cur_current.fetchall()
+    # select_current_point = select([MCheckpointRecord]).where(
+    #     MCheckpointRecord.user_id == user_id
+    # ).order_by(MCheckpointRecord.checkpoint_number.desc())
+    # cur_current = await connection.execute(select_current_point)
+    # rec_current = await cur_current.fetchall()
     # 如果申请开启关数为正确关数,则通过
     # print(rec_current)
     # state = False
@@ -201,11 +201,11 @@ async def post_checkpoint_point(request):
     #     state = True
     # if state == True:
     # 查询关卡条件
-    select_checkpoint = select([MCheckpoint]).where(
-        MCheckpoint.checkpoint_number == int(r_json['checkpoint_number'])
-    )
-    cur_checkpoint = await connection.execute(select_checkpoint)
-    rec_checkpoint = await cur_checkpoint.fetchone()
+    # select_checkpoint = select([MCheckpoint]).where(
+    #     MCheckpoint.checkpoint_number == int(r_json['checkpoint_number'])
+    # )
+    # cur_checkpoint = await connection.execute(select_checkpoint)
+    # rec_checkpoint = await cur_checkpoint.fetchone()
     record_info = {
         "user_id": user_id,
         "checkpoint_number": r_json['checkpoint_number'],

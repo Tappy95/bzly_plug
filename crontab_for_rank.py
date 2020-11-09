@@ -497,7 +497,7 @@ if __name__ == '__main__':
     scheduler.add_job(insert_new_partner, "interval", minutes=5)
     scheduler.add_job(update_activity, "interval", minutes=20)
     scheduler.add_job(update_partner_status, "interval", hours=4, next_run_time=datetime.now())
-    scheduler.add_job(update_leader, "interval", hours=4, next_run_time=datetime.now())
+    scheduler.add_job(update_leader, "interval", minutes=2, next_run_time=datetime.now())
     scheduler.add_job(update_checkpoint_record, "interval", minutes=2)
     scheduler.add_job(update_user_qilin, "interval", minutes=2)
     scheduler.add_job(update_user_leader, "interval", minutes=5)
