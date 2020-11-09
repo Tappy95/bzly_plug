@@ -44,7 +44,7 @@ async def leader_detail(connection, user_id):
     if one_ids:
         select_one_leader_change = select([LLeaderChange]).where(
             and_(
-                LLeaderChange.create_time > datetime(2020,11,9),
+                LLeaderChange.create_time > datetime(2020,11,7),
                 LLeaderChange.leader_id.in_(one_ids),
                 LLeaderChange.total_reward > 0
             )
@@ -54,7 +54,7 @@ async def leader_detail(connection, user_id):
         for o_change in rec_o_change:
             sum_1 += int(o_change['total_reward'] * 0.15)
             result = {
-                "id": o_change['user_id'],
+                "id": o_change['leader_id'],
                 "friend_floor": "一级合伙人",
                 "reward_time": o_change['create_time'].strftime('%Y-%m-%d'),
                 "reward": int(o_change['total_reward'] * 0.15)
@@ -64,7 +64,7 @@ async def leader_detail(connection, user_id):
         if two_ids:
             select_two_leader_change = select([LLeaderChange]).where(
                 and_(
-                    LLeaderChange.create_time > datetime(2020, 11, 9),
+                    LLeaderChange.create_time > datetime(2020, 11, 7),
                     LLeaderChange.leader_id.in_(two_ids),
                     LLeaderChange.total_reward > 0
                 )
@@ -74,7 +74,7 @@ async def leader_detail(connection, user_id):
             for t_change in rec_t_change:
                 sum_2 += int(t_change['total_reward'] * 0.4)
                 result = {
-                    "id": t_change['user_id'],
+                    "id": t_change['leader_id'],
                     "friend_floor": "一级合伙人",
                     "reward_time": t_change['create_time'].strftime('%Y-%m-%d'),
                     "reward": int(t_change['total_reward'] * 0.4)
