@@ -34,7 +34,7 @@ def update_partner_reward():
         two_ids = []
         now = datetime.now()
         today_time = now - timedelta(hours=now.hour, minutes=now.minute, seconds=now.second,
-                                     microseconds=now.microsecond),
+                                     microseconds=now.microsecond)
         for king_partner in select_partner:
 
             # 查找合伙人的一级合伙人下级

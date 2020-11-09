@@ -17,6 +17,7 @@ from models.alchemy_models import MUserInfo, t_tp_pcdd_callback, PDictionary, t_
     t_tp_ibx_callback, TpJxwCallback, TpYwCallback, TpDyCallback, TpZbCallback, LCoinChange, MChannelInfo, MChannel, \
     MCheckpointRecord, MCheckpoint, MCheckpointIncome, MCheckpointIncomeChange, MUserLeader, LLeaderChange, \
     LPartnerChange, MPartnerInfo
+from services.partner import leader_detail
 from task.callback_task import fission_schema, cash_exchange, select_user_id, get_channel_user_ids, get_callback_infos
 from task.check_sign import check_xw_sign, check_ibx_sign, check_jxw_sign, check_yw_sign, check_dy_sign, check_zb_sign
 from util.log import logger
@@ -814,6 +815,30 @@ async def get_agent_detail(request):
             "hasPreviousPage": False,
             "navigateLastPage": 0,
             "isFirstPage": True
+        },
+        "message": "操作成功",
+        "statusCode": "2000",
+        "token": token
+    }
+    return web.json_response(json_result)
+
+
+
+# 下级代理详情
+@routes.get('/partner/leader_detail')
+async def get_leader_detail(request):
+    token = request.query.get('token')
+    connection = request['db_connection']
+    user_id = await select_user_id(connection, token)
+
+    list_info, sum_1, sum_2 = await leader_detail(connection, user_id)
+
+    json_result = {
+        "data": {
+            "total": len(list_info),
+            "list": list_info,
+            "sum_1": sum_1,
+            "sum_2": sum_2
         },
         "message": "操作成功",
         "statusCode": "2000",

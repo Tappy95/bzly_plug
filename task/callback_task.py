@@ -50,6 +50,13 @@ async def cash_exchange(connection, user_id, amount, changed_type, reason, remar
         record_partner = await cursor_partner.fetchone()
         if record_partner:
             current_activity = record_partner['activity_points'] + 1
+            if record_leader:
+                update_leader_activity = update(MPartnerInfo).values({
+                    "activity_points": current_activity
+                }).where(
+                    MPartnerInfo.user_id == record_leader['leader_id']
+                )
+                await connection.execute(update_leader_activity)
     if record_cur_coin:
 
         # 计算金币余额
@@ -87,13 +94,7 @@ async def cash_exchange(connection, user_id, amount, changed_type, reason, remar
                     )
                 )
                 await connection.execute(update_user_coin)
-                if record_leader:
-                    update_leader_activity = update(MPartnerInfo).values({
-                        "activity_points": current_activity
-                    }).where(
-                        MPartnerInfo.user_id == record_leader['leader_id']
-                    )
-                    await connection.execute(update_leader_activity)
+
                 return True
             except Exception as e:
                 logger.info(e)
@@ -125,9 +126,12 @@ async def fission_schema(connection, aimuser_id, task_coin, is_one=True):
 
     amount = one_commission / 100 * task_coin if is_one else two_commission / 100 * task_coin
 
-    await cash_exchange_leader(connection, aimuser_id, record_aimuser['leader_id'], two_commission / 100 * task_coin)
-
     if record_aimuser:
+        # 领导人奖励
+        if record_aimuser['leader_id'] != record_aimuser['referrer'] and is_one:
+            await cash_exchange_leader(connection, aimuser_id, record_aimuser['leader_id'],
+                                       two_commission / 100 * task_coin)
+
         # 根据上级ID下发徒弟贡献金币变更任务
         # 查询上级是否是合伙人,是合伙人.金币不入账,且享受二级收益
         select_is_partner = select([MPartnerInfo]).where(
