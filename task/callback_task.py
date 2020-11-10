@@ -93,9 +93,12 @@ async def cash_exchange(connection, user_id, amount, changed_type, reason, remar
                         MUserInfo.coin == record_cur_coin['coin']
                     )
                 )
-                await connection.execute(update_user_coin)
-
-                return True
+                sql_rec = await connection.execute(update_user_coin)
+                if sql_rec == 0:
+                    logger.info("{}机会重试".format(retry))
+                    retry -= 1
+                else:
+                    return True
             except Exception as e:
                 logger.info(e)
                 logger.info("修改金币失败,请联系管理员")

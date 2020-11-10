@@ -313,10 +313,25 @@ def find_partner_one_or_two():
         print(two_ids)
 
 
+def test_update():
+    with engine.connect() as conn:
+        a = conn.execute(update(MUserInfo).values(
+            {
+                "account_id":1
+            }
+        ).where(
+            and_(
+                MUserInfo.user_id=="11",
+                MUserInfo.user_name=="asdf"
+            )
+        ))
+        print(a.rowcount)
+
+
 if __name__ == '__main__':
     # 爱变现
     # loop = asyncio.get_event_loop()
     # loop.run_until_complete(get_ibx_tasks())
 
     # 多游游戏获取
-    find_partner_one_or_two()
+    test_update()
