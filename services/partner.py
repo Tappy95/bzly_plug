@@ -75,7 +75,7 @@ async def leader_detail(connection, user_id):
                 sum_2 += int(t_change['total_reward'] * 0.4)
                 result = {
                     "id": t_change['leader_id'],
-                    "friend_floor": "一级合伙人",
+                    "friend_floor": "二级合伙人",
                     "reward_time": t_change['create_time'].strftime('%Y-%m-%d'),
                     "reward": int(t_change['total_reward'] * 0.4)
                 }

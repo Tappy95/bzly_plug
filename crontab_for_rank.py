@@ -128,62 +128,66 @@ def update_enddate_invite():
 def update_activity():
     # 遍历合伙人
     with engine.connect() as conn:
+        now = datetime.now()
         select_partner = conn.execute(select([MPartnerInfo])).fetchall()
         for partner in select_partner:
+            today_time = now - timedelta(hours=now.hour, minutes=now.minute, seconds=now.second,
+                                                   microseconds=now.microsecond)
             # 计算当前合伙人周期
             enddate = partner['enddate']
             startdate = enddate - timedelta(days=7)
             print(partner['user_id'], enddate, startdate)
             # 查询leader表,下级用户IDS
-            select_salve = conn.execute(
-                select([MUserLeader]).where(MUserLeader.leader_id == partner['user_id'])).fetchall()
-            salave_ids = [salave['user_id'] for salave in select_salve]
-            enddatetime = int(time.mktime(partner['enddate'].timetuple()) * 1000)
-            startdatetime = int(time.mktime((enddate - timedelta(days=7)).timetuple()) * 1000)
-            select_leader_coin = conn.execute(select([LCoinChange]).where(
-                and_(
-                    LCoinChange.changed_time > startdatetime,
-                    LCoinChange.changed_time < enddatetime,
-                    LCoinChange.user_id == partner['user_id']
-                )
-            )).fetchall()
-            select_activity = conn.execute(select([LCoinChange]).where(
-                and_(
-                    LCoinChange.changed_time > startdatetime,
-                    LCoinChange.changed_time < enddatetime,
-                    LCoinChange.user_id.in_(salave_ids)
-                )
-            )).fetchall()
-            conn.execute(update(MPartnerInfo).values(
-                {
-                    # 活跃度
-                    "activity_points": len(select_activity)
-                }
-            ).where(
-                MPartnerInfo.user_id == partner['user_id']
-            ))
+            for days in range(8):
+                today_time_start = today_time - timedelta(days=days)
+                today_time_end = today_time + timedelta(hours=23,minutes=59,seconds=59)
+                select_salve = conn.execute(
+                    select([MUserLeader]).where(MUserLeader.leader_id == partner['user_id'])).fetchall()
+                salave_ids = [salave['user_id'] for salave in select_salve]
+                enddatetime = int(time.mktime(partner['enddate'].timetuple()) * 1000)
+                startdatetime = int(time.mktime((enddate - timedelta(days=7)).timetuple()) * 1000)
+                select_leader_coin = conn.execute(select([LCoinChange]).where(
+                    and_(
+                        LCoinChange.changed_time > today_time_start,
+                        LCoinChange.changed_time < today_time_end,
+                        LCoinChange.user_id == partner['user_id']
+                    )
+                )).fetchall()
+                select_activity = conn.execute(select([LCoinChange]).where(
+                    and_(
+                        LCoinChange.changed_time > startdatetime,
+                        LCoinChange.changed_time < enddatetime,
+                        LCoinChange.user_id.in_(salave_ids)
+                    )
+                )).fetchall()
+                conn.execute(update(MPartnerInfo).values(
+                    {
+                        # 活跃度
+                        "activity_points": len(select_activity)
+                    }
+                ).where(
+                    MPartnerInfo.user_id == partner['user_id']
+                ))
 
-            now = datetime.now()
-            change_info = {
-                "leader_id": partner['user_id'],
-                "create_time": now - timedelta(hours=now.hour, minutes=now.minute, seconds=now.second,
-                                               microseconds=now.microsecond),
-                "total_reward": sum([change['amount'] for change in select_leader_coin if change['flow_type'] == 1 and (
-                        change['changed_type'] == 35 or change['changed_type'] == 36)]),
-                "active_user": len(set([active_user['user_id'] for active_user in select_activity])),
-                "update_time": now
-            }
-            # 更新当日汇总表
-            ins = insert(LLeaderChange)
-            insert_stmt = ins.values(change_info)
-            on_duplicate_key_stmt = insert_stmt.on_duplicate_key_update(
-                leader_id=insert_stmt.inserted.leader_id,
-                create_time=insert_stmt.inserted.create_time,
-                total_reward=insert_stmt.inserted.total_reward,
-                active_user=insert_stmt.inserted.active_user,
-                update_time=insert_stmt.inserted.update_time
-            )
-            conn.execute(on_duplicate_key_stmt)
+                change_info = {
+                    "leader_id": partner['user_id'],
+                    "create_time": today_time,
+                    "total_reward": sum([change['amount'] for change in select_leader_coin if change['flow_type'] == 1 and (
+                            change['changed_type'] == 35 or change['changed_type'] == 36)]),
+                    "active_user": len(set([active_user['user_id'] for active_user in select_activity])),
+                    "update_time": now
+                }
+                # 更新当日汇总表
+                ins = insert(LLeaderChange)
+                insert_stmt = ins.values(change_info)
+                on_duplicate_key_stmt = insert_stmt.on_duplicate_key_update(
+                    leader_id=insert_stmt.inserted.leader_id,
+                    create_time=insert_stmt.inserted.create_time,
+                    total_reward=insert_stmt.inserted.total_reward,
+                    active_user=insert_stmt.inserted.active_user,
+                    update_time=insert_stmt.inserted.update_time
+                )
+                conn.execute(on_duplicate_key_stmt)
     print("Done update activity")
 
 
@@ -495,7 +499,7 @@ if __name__ == '__main__':
     scheduler.add_job(update_rank_user, "interval", minutes=60)
     scheduler.add_job(update_enddate_invite, "interval", minutes=10)
     scheduler.add_job(insert_new_partner, "interval", minutes=5)
-    scheduler.add_job(update_activity, "interval", minutes=20)
+    scheduler.add_job(update_activity, "interval", minutes=20, next_run_time=datetime.now())
     scheduler.add_job(update_partner_status, "interval", hours=4, next_run_time=datetime.now())
     scheduler.add_job(update_leader, "interval", minutes=2, next_run_time=datetime.now())
     scheduler.add_job(update_checkpoint_record, "interval", minutes=2)

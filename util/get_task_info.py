@@ -282,11 +282,36 @@ def update_leader_info():
     with engine.connect() as conn:
         conn.execute(update(MUserLeader).values(
             {
-                "referrer":"d64bb408629c4f7e9f5c92b503672dcb"
+                "referrer": "d64bb408629c4f7e9f5c92b503672dcb"
             }
         ).where(
             MUserLeader.referrer == None
         ))
+
+
+def find_partner_one_or_two():
+    with engine.connect() as conn:
+        select_partner = conn.execute(select([MPartnerInfo]).where(
+            MPartnerInfo.status == 1
+        )).fetchall()
+        one_ids = []
+        two_ids = []
+        partner_ids = [partner['user_id'] for partner in select_partner]
+        select_one = conn.execute(select([MUserLeader]).where(
+            MUserLeader.referrer == "d64bb408629c4f7e9f5c92b503672dcb"
+        )).fetchall()
+        for one in select_one:
+            if one['user_id'] in partner_ids:
+                one_ids.append(one['user_id'])
+        print(one_ids)
+        select_two = conn.execute(select([MUserLeader]).where(
+            MUserLeader.referrer.in_([one['user_id'] for one in select_one])
+        )).fetchall()
+        for two in select_two:
+            if two['user_id'] in partner_ids:
+                two_ids.append(two['user_id'])
+        print(two_ids)
+
 
 if __name__ == '__main__':
     # 爱变现
@@ -294,4 +319,4 @@ if __name__ == '__main__':
     # loop.run_until_complete(get_ibx_tasks())
 
     # 多游游戏获取
-    sync_channel_partner()
+    find_partner_one_or_two()
