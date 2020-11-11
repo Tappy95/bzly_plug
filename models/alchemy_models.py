@@ -2174,3 +2174,28 @@ class LPartnerChange(Base):
     is_reward = Column(INTEGER(2), comment='是否发奖成功')
     active_partner = Column(INTEGER(11), comment='活跃的下属合伙人')
     update_time = Column(DateTime, comment='更新时间')
+
+
+class MWageLevel(Base):
+    __tablename__ = 'm_wage_level'
+
+    wage_level = Column(Integer, primary_key=True, info='工资任务等级')
+    wage_info = Column(String(255), info='工资任务描述')
+    game_number = Column(Integer, info='游戏任务指标数')
+    video_number = Column(Integer, info='视频任务指标数')
+    reward = Column(Integer, info='奖励金额->人民币')
+    update_time = Column(DateTime, info='更新时间')
+
+
+
+class MWageRecord(Base):
+    __tablename__ = 'm_wage_record'
+
+    user_id = Column(String(32), primary_key=True, nullable=False, info='用户ID')
+    create_time = Column(DateTime, primary_key=True, nullable=False, info='创建时间')
+    reward = Column(Integer, info='奖励金额')
+    wage_level = Column(Integer, info='接取任务等级')
+    current_game = Column(Integer, info='已完成游戏任务数目')
+    current_video = Column(Integer, info='已完成视频任务数目')
+    status = Column(Integer, info='0未接取,1已接取,2已结算')
+    update_time = Column(DateTime, info='更新时间')

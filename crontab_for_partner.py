@@ -9,7 +9,7 @@ from sqlalchemy.dialects.mysql import insert
 
 from config import *
 from models.alchemy_models import LRankMachine, LRankCoin, MPartnerInfo, MUserLeader, LCoinChange, LLeaderChange, \
-    MCheckpointRecord, MUserInfo, MCheckpoint, LPartnerChange
+    MCheckpointRecord, MUserInfo, MCheckpoint, LPartnerChange, MWageRecord
 from util.log import logger
 from util.static_methods import serialize, get_pidic_key, update_leader_id
 
@@ -118,10 +118,61 @@ def update_partner_reward():
     print("Done update partner status")
 
 
+# 每日工资任务实时统计
+def update_wage_task():
+    now = datetime.now()
+    today_time = now - timedelta(hours=now.hour, minutes=now.minute, seconds=now.second,
+                                 microseconds=now.microsecond)
+    with engine.connect() as conn:
+        select_wage_record = conn.execute(select([MWageRecord]).where(
+            and_(
+                MWageRecord.status == 1,
+                MWageRecord.create_time == today_time
+            )
+        )).fetchall()
+        for wage_record in select_wage_record:
+            # 查询用户时间段内的视频数
+            select_videos = conn.execute(select([LCoinChange]).where(
+                and_(
+                    LCoinChange.user_id == wage_record['user_id'],
+                    LCoinChange.flow_type == 1,
+                    LCoinChange.changed_time > int(time.mktime(wage_record['create_time'].timetuple()) * 1000),
+                    LCoinChange.changed_time < int(time.time() * 1000),
+                    LCoinChange.changed_type == 30
+                )
+            )).fetchall()
+            current_videos = len(select_videos)
+            # 查询用户时间段内的游戏任务数
+            select_games = conn.execute(select([LCoinChange]).where(
+                and_(
+                    LCoinChange.user_id == wage_record['user_id'],
+                    LCoinChange.flow_type == 1,
+                    LCoinChange.changed_time > int(time.mktime(wage_record['create_time'].timetuple()) * 1000),
+                    LCoinChange.changed_time < int(time.time() * 1000),
+                    LCoinChange.changed_type == 7
+                )
+            )).fetchall()
+            current_games = len(select_games)
+
+            # 更新每日任务数据
+            conn.execute(update(MWageRecord).values({
+                "current_game": current_games,
+                "current_video": current_videos,
+            }).where(
+                and_(
+                    MWageRecord.user_id == wage_record['user_id'],
+                    MWageRecord.create_time == wage_record['create_time']
+                )
+            ))
+            logger.info("{}:game->{},video->{}".format(wage_record['user_id'], current_games, current_videos))
+    print("Done update wage tasks")
+
+
 if __name__ == '__main__':
     scheduler = BlockingScheduler()
 
     scheduler.add_job(update_partner_reward, "interval", minutes=4, next_run_time=datetime.now())
+    scheduler.add_job(update_wage_task, "interval", minutes=1, next_run_time=datetime.now())
 
     # scheduler.add_job(update_enddate_invite, "interval", seconds=2)
     # scheduler.add_job(my_clock, "cron", hour='21', minute='48')

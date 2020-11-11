@@ -15,9 +15,9 @@ from sqlalchemy.dialects.mysql import insert
 from libs.snowflake import IdWorker
 from models.alchemy_models import MUserInfo, t_tp_pcdd_callback, PDictionary, t_tp_xw_callback, TpTaskInfo, \
     t_tp_ibx_callback, TpJxwCallback, TpYwCallback, TpDyCallback, TpZbCallback, LCoinChange, MChannelInfo, MChannel, \
-    TpVideoCallback
+    TpVideoCallback, MUserLeader
 from task.callback_task import fission_schema, cash_exchange, select_user_id, get_channel_user_ids, get_callback_infos, \
-    today_user_sign
+    today_user_sign, select_admin_user_id
 from task.check_sign import check_xw_sign, check_ibx_sign, check_jxw_sign, check_yw_sign, check_dy_sign, check_zb_sign
 from util.log import logger
 from util.static_methods import serialize, get_pdictionary_key, get_video_reward_count
@@ -840,7 +840,6 @@ async def post_ywcallback(request):
         else:
             fs_result = True
 
-
         if c_result and fs_result:
             update_callback_status = update(TpYwCallback).values({
                 "status": 1
@@ -1347,53 +1346,66 @@ async def restart_callback(request):
 @routes.get('/coinchange')
 async def get_coinchange(request):
     params = {**request.query}
+    token = params['token']
     pa = copy.deepcopy(params)
     for item in pa:
         if not params[item]:
             params.pop(item)
     connection = request['db_connection']
     conditions = []
-    if "channelType" in params:
-        params['channel'] = params['channelType']
+    if "isJQL" in params:
+        redis_connection = request['redis_connection']
+        leader_id = await select_admin_user_id(connection, token, redis_connection)
+        select_under_leader_ids = select([MUserLeader]).where(
+            MUserLeader.leader_id == leader_id
+        )
+        cur_u_leaders = await connection.execute(select_under_leader_ids)
+        rec_u_leaders = await cur_u_leaders.fetchall()
+        u_l_ids = [under_user['user_id'] for under_user in rec_u_leaders]
+        conditions.append(MUserInfo.user_id.in_(u_l_ids))
+    else:
 
-    if params['channel'] != "all":
-        if "searchType" not in params:
-            conditions.append(
-                or_(MUserInfo.channel_code == params['channel'], MUserInfo.parent_channel_code == params['channel']))
-        else:
-            if params['searchType'] == "1":
-                conditions.append(MUserInfo.channel_code == params['channel'])
-            elif params['searchType'] == "2":
-                # 先查一级,再查一级的徒弟
-                select_1_user = select([MUserInfo]).where(MUserInfo.channel_code == params['channel'])
-                cur_1 = await connection.execute(select_1_user)
-                rec_1 = await cur_1.fetchall()
-                first_user_ids = [user_info['user_id'] for user_info in rec_1]
-                # 查一级ID的徒弟
-                select_2_user = select([MUserInfo]).where(MUserInfo.referrer.in_(first_user_ids))
-                cur_2 = await connection.execute(select_2_user)
-                rec_2 = await cur_2.fetchall()
-                second_user_ids = [user_info['user_id'] for user_info in rec_2]
-                # 加入主查询
-                conditions.append(MUserInfo.user_id.in_(second_user_ids))
-            elif params['searchType'] == "3":
-                select_1_user = select([MUserInfo]).where(MUserInfo.channel_code == params['channel'])
-                cur_1 = await connection.execute(select_1_user)
-                rec_1 = await cur_1.fetchall()
-                first_user_ids = [user_info['user_id'] for user_info in rec_1]
-                select_all_user = select([MUserInfo]).where(
-                    or_(MUserInfo.channel_code == params['channel'],
-                        MUserInfo.parent_channel_code == params['channel'])
-                )
-                cur_all = await connection.execute(select_all_user)
-                rec_all = await cur_all.fetchall()
-                all_user_ids = [user_info['user_id'] for user_info in rec_all]
-                not_first_ids = []
-                for not_first in all_user_ids:
-                    if not_first not in first_user_ids:
-                        not_first_ids.append(not_first)
-                # 加入主查询
-                conditions.append(MUserInfo.user_id.in_(not_first_ids))
+        if "channelType" in params:
+            params['channel'] = params['channelType']
+
+        if params['channel'] != "all":
+            if "searchType" not in params:
+                conditions.append(
+                    or_(MUserInfo.channel_code == params['channel'], MUserInfo.parent_channel_code == params['channel']))
+            else:
+                if params['searchType'] == "1":
+                    conditions.append(MUserInfo.channel_code == params['channel'])
+                elif params['searchType'] == "2":
+                    # 先查一级,再查一级的徒弟
+                    select_1_user = select([MUserInfo]).where(MUserInfo.channel_code == params['channel'])
+                    cur_1 = await connection.execute(select_1_user)
+                    rec_1 = await cur_1.fetchall()
+                    first_user_ids = [user_info['user_id'] for user_info in rec_1]
+                    # 查一级ID的徒弟
+                    select_2_user = select([MUserInfo]).where(MUserInfo.referrer.in_(first_user_ids))
+                    cur_2 = await connection.execute(select_2_user)
+                    rec_2 = await cur_2.fetchall()
+                    second_user_ids = [user_info['user_id'] for user_info in rec_2]
+                    # 加入主查询
+                    conditions.append(MUserInfo.user_id.in_(second_user_ids))
+                elif params['searchType'] == "3":
+                    select_1_user = select([MUserInfo]).where(MUserInfo.channel_code == params['channel'])
+                    cur_1 = await connection.execute(select_1_user)
+                    rec_1 = await cur_1.fetchall()
+                    first_user_ids = [user_info['user_id'] for user_info in rec_1]
+                    select_all_user = select([MUserInfo]).where(
+                        or_(MUserInfo.channel_code == params['channel'],
+                            MUserInfo.parent_channel_code == params['channel'])
+                    )
+                    cur_all = await connection.execute(select_all_user)
+                    rec_all = await cur_all.fetchall()
+                    all_user_ids = [user_info['user_id'] for user_info in rec_all]
+                    not_first_ids = []
+                    for not_first in all_user_ids:
+                        if not_first not in first_user_ids:
+                            not_first_ids.append(not_first)
+                    # 加入主查询
+                    conditions.append(MUserInfo.user_id.in_(not_first_ids))
 
     if "mobile" in params:
         conditions.append(MUserInfo.mobile == params['mobile'])
@@ -1402,6 +1414,7 @@ async def get_coinchange(request):
     # 根据查询维度获取用户ids
     select_user_ids = select([MUserInfo]).where(and_(*conditions))
     # logger.info(select_user_ids)
+    logger.info(select_user_ids)
     cur_user = await connection.execute(select_user_ids)
     rec_user = await cur_user.fetchall()
     search_user_ids = [user_info['user_id'] for user_info in rec_user]
@@ -1457,9 +1470,14 @@ async def get_coinchange(request):
         for change in rec_coin:
             if user['user_id'] == change['user_id']:
                 result = {
+                    "user_id": user['user_id'],
                     "accountId": user['account_id'],
                     "equipmentType": user['equipment_type'],
                     "userName": user['user_name'],
+                    "phoneNum": user['mobile'],
+                    "referrerId": user['referrer'],
+                    "leaderId": "",
+                    "roleType": user['role_type'],
                     "level": user['level'],
                     "changedType": change['changed_type'],
                     "revenue": change['amount'] if change['flow_type'] == 1 else 0,
@@ -1475,6 +1493,32 @@ async def get_coinchange(request):
                 list_info.append(result)
                 subExpendPrice += result['expend']
                 subRevenuePrice += result['revenue']
+
+    # 补全信息->上级ID,最高领导人id
+    partner_leader_ids = []
+    select_all_leader = select([MUserLeader]).where(
+        MUserLeader.user_id.in_(search_user_ids)
+    )
+    cur_all_leader = await connection.execute(select_all_leader)
+    rec_all_leader = await cur_all_leader.fetchall()
+    for row in rec_all_leader:
+        partner_leader_ids.append(row['referrer'])
+        partner_leader_ids.append(row['leader_id'])
+    select_account_id = select([MUserInfo]).where(
+        MUserInfo.user_id.in_(partner_leader_ids)
+    )
+    cur_account = await connection.execute(select_account_id)
+    rec_account = await cur_account.fetchall()
+    for r_row in list_info:
+        for leader in rec_all_leader:
+            if r_row['user_id'] == leader['user_id']:
+                r_row['leaderId'] = leader['leader_id']
+            for account in rec_account:
+                if r_row['referrerId'] == account['user_id']:
+                    r_row['referrerId'] = account['account_id']
+                if r_row['leaderId'] == account['user_id']:
+                    r_row['leaderId'] = account['account_id']
+
     newlist = sorted(list_info, key=itemgetter('changedTime'))
     # logger.info(list_info)
     json_result = {

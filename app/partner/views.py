@@ -16,9 +16,10 @@ from sqlalchemy.dialects.mysql import insert
 from models.alchemy_models import MUserInfo, t_tp_pcdd_callback, PDictionary, t_tp_xw_callback, TpTaskInfo, \
     t_tp_ibx_callback, TpJxwCallback, TpYwCallback, TpDyCallback, TpZbCallback, LCoinChange, MChannelInfo, MChannel, \
     MCheckpointRecord, MCheckpoint, MCheckpointIncome, MCheckpointIncomeChange, MUserLeader, LLeaderChange, \
-    LPartnerChange, MPartnerInfo
+    LPartnerChange, MPartnerInfo, MWageRecord, MWageLevel
 from services.partner import leader_detail
-from task.callback_task import fission_schema, cash_exchange, select_user_id, get_channel_user_ids, get_callback_infos
+from task.callback_task import fission_schema, cash_exchange, select_user_id, get_channel_user_ids, get_callback_infos, \
+    insert_exchange_cash
 from task.check_sign import check_xw_sign, check_ibx_sign, check_jxw_sign, check_yw_sign, check_dy_sign, check_zb_sign
 from util.log import logger
 from util.static_methods import serialize
@@ -418,6 +419,234 @@ async def get_reward(request):
         "code": 200,
         "message": "success"
     })
+
+
+# 获取每日工资状态
+@routes.get('/user/wage')
+async def get_user_wage(request):
+    token = request.query.get('token')
+    connection = request['db_connection']
+    user_id = await select_user_id(connection, token)
+    now = datetime.now()
+    today_time = now - timedelta(hours=now.hour, minutes=now.minute, seconds=now.second,
+                                 microseconds=now.microsecond)
+    select_user_wage = select([MWageRecord]).where(
+        and_(
+            MWageRecord.user_id == user_id,
+            MWageRecord.create_time == today_time
+        )
+    )
+    cur_user_wage = await connection.execute(select_user_wage)
+    rec_user_wage = await cur_user_wage.fetchone()
+    if rec_user_wage:
+        select_wage_level = select([MWageLevel]).where(
+            MWageLevel.wage_level == rec_user_wage['wage_level']
+        )
+        cur_wage_level = await connection.execute(select_wage_level)
+        rec_wage_level = await cur_wage_level.fetchone()
+        result = {
+            "wage_level": rec_user_wage['wage_level'],
+            "wage_info": rec_wage_level['wage_info'],
+            "status": rec_user_wage['status'],
+            "current_video": rec_user_wage['current_video'],
+            "current_game": rec_user_wage['current_game'],
+            "game_number": rec_wage_level['game_number'],
+            "video_number": rec_wage_level['video_number'],
+            "reward": rec_wage_level['reward'],
+        }
+    else:
+        result = {
+            "wage_level": 0,
+            "wage_info": "",
+            "status": 0,
+            "current_video": 0,
+            "current_game": 0,
+            "game_number": 0,
+            "video_number": 0,
+            "reward": 0
+        }
+    json_result = {
+        "code": 200,
+        "message": "success",
+        "data": result,
+        "current_reward": rec_user_wage['reward'] if rec_user_wage else 0
+    }
+    return web.json_response(json_result)
+
+
+# 接取每日工资任务
+@routes.post('/user/wage')
+async def post_user_wage(request):
+    params = await request.post()
+    token = params['token']
+    wage_level = int(params['wage_level'])
+    connection = request['db_connection']
+    user_id = await select_user_id(connection, token)
+    now = datetime.now()
+    today_time = now - timedelta(hours=now.hour, minutes=now.minute, seconds=now.second,
+                                 microseconds=now.microsecond)
+    select_user_wage = select([MWageRecord]).where(
+        and_(
+            MWageRecord.user_id == user_id,
+            MWageRecord.create_time == today_time
+        )
+    )
+    cur_user_wage = await connection.execute(select_user_wage)
+    rec_user_wage = await cur_user_wage.fetchone()
+    # 今日任务已接取
+    if rec_user_wage:
+        return web.json_response({
+            "code": 400,
+            "message": "今日任务已接取"
+        })
+    else:
+        select_wage_level = select([MWageLevel]).where(
+            MWageLevel.wage_level == wage_level
+        )
+        cur_wage_level = await connection.execute(select_wage_level)
+        rec_wage_level = await cur_wage_level.fetchone()
+        try:
+            await connection.execute(
+                insert(MWageRecord).values(
+                    {
+                        "user_id": user_id,
+                        "create_time": today_time,
+                        "reward": 0,
+                        "wage_level": rec_wage_level['wage_level'],
+                        "current_game": 0,
+                        "current_video": 0,
+                        "status": 1,
+                        "update_time": today_time,
+                    }
+                )
+            )
+            json_result = {
+                "code": 200,
+                "message": "接取成功",
+                "data": {
+                    "wage_level": rec_wage_level['wage_level'],
+                    "wage_info": rec_wage_level['wage_level'],
+                    "status": 1,
+                    "current_video": 0,
+                    "current_game": 0,
+                    "game_number": rec_wage_level['wage_level'],
+                    "video_number": rec_wage_level['wage_level'],
+                    "reward": rec_wage_level['wage_level']
+                }
+            }
+        except Exception as e:
+            logger.info(e)
+            json_result = {
+                "code": 400,
+                "message": "接取失败",
+                "data": {}
+            }
+    return web.json_response(json_result)
+
+
+# 提交并结算每日工资
+@routes.get('/user/wage/cash')
+async def get_wage_cash(request):
+    token = request.query.get('token')
+    connection = request['db_connection']
+    user_id = await select_user_id(connection, token)
+    now = datetime.now()
+    today_time = now - timedelta(hours=now.hour, minutes=now.minute, seconds=now.second,
+                                 microseconds=now.microsecond)
+    select_user_wage = select([MWageRecord]).where(
+        and_(
+            MWageRecord.user_id == user_id,
+            MWageRecord.create_time == today_time
+        )
+    )
+    cur_user_wage = await connection.execute(select_user_wage)
+    rec_user_wage = await cur_user_wage.fetchone()
+    select_wage_level = select([MWageLevel]).where(
+        MWageLevel.wage_level == rec_user_wage['wage_level']
+    )
+    cur_wage_level = await connection.execute(select_wage_level)
+    rec_wage_level = await cur_wage_level.fetchone()
+    if rec_user_wage and rec_wage_level:
+        if rec_user_wage['status'] == 2:
+            return web.json_response({
+                "code": 400,
+                "message": "任务已结算"
+            })
+        if rec_user_wage['current_game'] >= rec_wage_level['game_number'] and \
+                rec_user_wage['current_video'] >= rec_wage_level['video_number']:
+            await connection.execute(
+                update(MWageRecord).values({
+                    "status": 2,
+                    "reward": rec_wage_level['reward'],
+                    "update_time": datetime.now()
+                }).where(
+                    and_(
+                        MWageRecord.user_id == user_id,
+                        MWageRecord.create_time == today_time
+                    )
+                )
+            )
+            json_result = {
+                "code": 200,
+                "message": "提交并结算成功"
+            }
+        else:
+            json_result = {
+                "code": 400,
+                "message": "任务指标未达标"
+            }
+    else:
+        json_result = {
+            "code": 400,
+            "message": "缺少任务信息"
+        }
+
+    return web.json_response(json_result)
+
+
+# 提现今日工资
+@routes.post('/user/wage/cash')
+async def post_wage_cash(request):
+    params = await request.post()
+    token = params['token']
+    connection = request['db_connection']
+    user_id = await select_user_id(connection, token)
+    now = datetime.now()
+    today_time = now - timedelta(hours=now.hour, minutes=now.minute, seconds=now.second,
+                                 microseconds=now.microsecond)
+    select_user_wage = select([MWageRecord]).where(
+        and_(
+            MWageRecord.create_time == today_time,
+            MWageRecord.user_id == user_id
+        )
+    )
+    cur_user_wage = await connection.execute(select_user_wage)
+    rec_user_wage = await cur_user_wage.fetchone()
+    if rec_user_wage:
+        if rec_user_wage['status'] == 2:
+            # 任务验证成功发起提现
+            cash_result, toast = await insert_exchange_cash(connection, user_id, rec_user_wage['reward'],
+                                                            rec_user_wage['create_time'])
+            json_result = {
+                "code": 200 if cash_result else 400,
+                "message": toast
+            }
+        elif rec_user_wage['status'] == 3:
+            json_result = {
+                "code": 400,
+                "message": "今日工资已提现"
+            }
+        else:
+            json_result = {
+                "code": 400,
+                "message": "每日工资未获取"
+            }
+    else:
+        json_result = {
+            "code": 400,
+            "message": "清先接取每日工资任务"
+        }
+    return web.json_response(json_result)
 
 
 # 主页统计表
@@ -821,7 +1050,6 @@ async def get_agent_detail(request):
         "token": token
     }
     return web.json_response(json_result)
-
 
 
 # 下级代理详情

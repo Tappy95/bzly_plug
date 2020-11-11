@@ -7,7 +7,7 @@ from sqlalchemy import select, update, insert, and_, text, or_
 
 from models.alchemy_models import MUserInfo, MFissionScheme, LCoinChange, TpDyCallback, t_tp_pcdd_callback, \
     t_tp_xw_callback, t_tp_ibx_callback, TpZbCallback, TpYwCallback, TpJxwCallback, MChannelInfo, MPartnerInfo, \
-    MUserLeader, LUserSign
+    MUserLeader, LUserSign, LUserExchangeCash, MWageRecord, PAdmin
 from util.log import logger
 
 # 金币变更任务
@@ -327,6 +327,27 @@ async def select_user_id(connection, t_or_id):
             return None
 
 
+# 查询管理员用户ID
+async def select_admin_user_id(connection, redis_key, redis_conneciton):
+    value = await redis_conneciton.get(redis_key, encoding="utf-8")
+    values = value.split('_')
+    admin_id = values[3]
+    select_admin_id = select([PAdmin]).where(
+        PAdmin.admin_id == admin_id
+    )
+    cur = await connection.execute(select_admin_id)
+    rec = await cur.fetchone()
+    select_b_id = select([MUserInfo]).where(
+        MUserInfo.mobile == rec['mobile']
+    )
+    cur = await connection.execute(select_b_id)
+    rec = await cur.fetchone()
+    if rec:
+        return rec['user_id']
+    else:
+        return None
+
+
 # 查询渠道用户IDs
 async def get_channel_user_ids(connection, channel):
     select_user_ids = select([MUserInfo]).where(
@@ -567,6 +588,7 @@ async def get_callback_infos(connection, user_ids, platform, params):
 #     loop = asyncio.get_event_loop()
 #     loop.run_until_complete(get_channel_user_ids())
 
+# 用户签到视频
 async def today_user_sign(connection, user_id):
     # 查询已有签到
     select_user_sign = select([LUserSign]).where(
@@ -618,3 +640,70 @@ async def today_user_sign(connection, user_id):
             "is_task": 2
         }).where(LUserSign.user_id == user_id))
     return True
+
+
+# 插入提现待审核数据
+async def insert_exchange_cash(connection, user_id, cash, create_time):
+    select_user_wage = select([MWageRecord]).where(
+        and_(
+            MWageRecord.create_time == create_time,
+            MWageRecord.user_id == user_id
+        )
+    )
+    cur_user_wage = await connection.execute(select_user_wage)
+    rec_user_wage = await cur_user_wage.fetchone()
+    if rec_user_wage['status'] == 3:
+        return False, "今日工资已提现"
+    # 查询用户信息
+    select_user = select([MUserInfo]).where(
+        MUserInfo.user_id == user_id
+    )
+    cur_user = await connection.execute(select_user)
+    rec_user = await cur_user.fetchone()
+    if not rec_user or not rec_user['user_name'] or not rec_user['ali_num']:
+        return False, "请前往提现页面补全支付宝账号"
+    current_time = int(time.time() * 1000)
+    # 插入lcoinchange表
+    insert_rec = await connection.execute(insert(LCoinChange).values({
+        "user_id": user_id,
+        "amount": cash * 10000,
+        "flow_type": 2,
+        "changed_type": 3,
+        "changed_time": current_time,
+        "status": 2,
+        "account_type": 2,
+        "reason": "每日工资提现",
+        "remarks": "每日工资提现",
+        "coin_balance": 0,
+    }))
+
+    # 插入exchangecash表
+    await connection.execute(insert(LUserExchangeCash).values({
+        "coin_change_id": insert_rec.lastrowid,
+        "user_id": user_id,
+        "out_trade_no": str(current_time) + rec_user['qr_code'],
+        "bank_account": rec_user['ali_num'],
+        "real_name": rec_user['user_name'],
+        "coin": cash * 10000,
+        "actual_amount": cash,
+        "service_charge": 0,
+        "coin_balance": 0,
+        "coin_to_money": 10000,
+        "creator_time": current_time,
+        "state": 1,
+        "is_locking": 2,
+        "user_ip": "127.0.0.1",
+        "cash_type": 1,
+    }))
+
+    await connection.execute(update(MWageRecord).values({
+        "status": 3,
+        "reward": 0
+    }).where(
+        and_(
+            MWageRecord.create_time == create_time,
+            MWageRecord.user_id == user_id
+        )
+    ))
+
+    return True, "申请提现成功"
