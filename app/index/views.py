@@ -21,6 +21,7 @@ from task.callback_task import fission_schema, cash_exchange, select_user_id, ge
 from task.check_sign import check_xw_sign, check_ibx_sign, check_jxw_sign, check_yw_sign, check_dy_sign, check_zb_sign
 from util.log import logger
 from util.static_methods import serialize, get_pdictionary_key, get_video_reward_count
+from util.task_protocol import pub_to_nsq
 
 routes = web.RouteTableDef()
 
@@ -1414,7 +1415,6 @@ async def get_coinchange(request):
     # 根据查询维度获取用户ids
     select_user_ids = select([MUserInfo]).where(and_(*conditions))
     # logger.info(select_user_ids)
-    logger.info(select_user_ids)
     cur_user = await connection.execute(select_user_ids)
     rec_user = await cur_user.fetchall()
     search_user_ids = [user_info['user_id'] for user_info in rec_user]
@@ -1544,3 +1544,20 @@ async def get_coinchange(request):
 async def get_time(request):
     timenow = int(time.time())
     return web.Response(text=str(timenow))
+
+
+
+# 测试NSQ
+@routes.get('/nsq')
+async def get_nsq(request):
+    nsq_topic = "callback_queue"
+    nsq_msg = {
+        "task": "callback_task",
+        "data": {}
+    }
+    task_status = await pub_to_nsq(NSQ_NSQD_HTTP_ADDR, nsq_topic, nsq_msg)
+    if task_status != 200:
+        return web.HTTPServiceUnavailable(text="Task publishing failed")
+    return web.json_response({
+        "ok":"success"
+    })

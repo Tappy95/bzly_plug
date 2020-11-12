@@ -28,7 +28,7 @@ class BaseTask(Task):
         self._to = to_name
 
 
-class ANATask(BaseTask):
+class QLTask(BaseTask):
 
     def __init__(self, task):
         if isinstance(task, Task):

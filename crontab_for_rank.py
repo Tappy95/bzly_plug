@@ -4,7 +4,7 @@ import time
 from apscheduler.schedulers.blocking import BlockingScheduler
 from datetime import datetime, timedelta
 
-from sqlalchemy import create_engine, select, and_, update
+from sqlalchemy import create_engine, select, and_, update, or_
 from sqlalchemy.dialects.mysql import insert
 
 from config import *
@@ -132,7 +132,7 @@ def update_activity():
         select_partner = conn.execute(select([MPartnerInfo])).fetchall()
         for partner in select_partner:
             today_time = now - timedelta(hours=now.hour, minutes=now.minute, seconds=now.second,
-                                                   microseconds=now.microsecond)
+                                         microseconds=now.microsecond)
             # 计算当前合伙人周期
             enddate = partner['enddate']
             startdate = enddate - timedelta(days=7)
@@ -140,16 +140,16 @@ def update_activity():
             # 查询leader表,下级用户IDS
             for days in range(8):
                 today_time_start = today_time - timedelta(days=days)
-                today_time_end = today_time + timedelta(hours=23,minutes=59,seconds=59)
+                today_time_end = today_time + timedelta(hours=23, minutes=59, seconds=59)
                 select_salve = conn.execute(
                     select([MUserLeader]).where(MUserLeader.leader_id == partner['user_id'])).fetchall()
                 salave_ids = [salave['user_id'] for salave in select_salve]
-                enddatetime = int(time.mktime(partner['enddate'].timetuple()) * 1000)
-                startdatetime = int(time.mktime((enddate - timedelta(days=7)).timetuple()) * 1000)
+                enddatetime = int(time.mktime(today_time_end.timetuple()) * 1000)
+                startdatetime = int(time.mktime(today_time_start.timetuple()) * 1000)
                 select_leader_coin = conn.execute(select([LCoinChange]).where(
                     and_(
-                        LCoinChange.changed_time > today_time_start,
-                        LCoinChange.changed_time < today_time_end,
+                        LCoinChange.changed_time > startdatetime,
+                        LCoinChange.changed_time < enddatetime,
                         LCoinChange.user_id == partner['user_id']
                     )
                 )).fetchall()
@@ -157,7 +157,11 @@ def update_activity():
                     and_(
                         LCoinChange.changed_time > startdatetime,
                         LCoinChange.changed_time < enddatetime,
-                        LCoinChange.user_id.in_(salave_ids)
+                        LCoinChange.user_id.in_(salave_ids),
+                        or_(
+                           LCoinChange.changed_type == 35,
+                           LCoinChange.changed_type == 36,
+                        )
                     )
                 )).fetchall()
                 conn.execute(update(MPartnerInfo).values(
@@ -171,9 +175,9 @@ def update_activity():
 
                 change_info = {
                     "leader_id": partner['user_id'],
-                    "create_time": today_time,
-                    "total_reward": sum([change['amount'] for change in select_leader_coin if change['flow_type'] == 1 and (
-                            change['changed_type'] == 35 or change['changed_type'] == 36)]),
+                    "create_time": today_time_start,
+                    "total_reward": sum(
+                        [change['amount'] for change in select_leader_coin]),
                     "active_user": len(set([active_user['user_id'] for active_user in select_activity])),
                     "update_time": now
                 }

@@ -1,5 +1,7 @@
 import sys
 
+from pipeflow import endpoints
+
 PY35 = sys.version_info >= (3, 5)
 assert PY35, "Require python 3.5 or later version"
 
