@@ -7,7 +7,7 @@ import hashlib
 import time
 
 import requests
-from sqlalchemy import select, create_engine, update, and_
+from sqlalchemy import select, create_engine, update, and_, delete
 from sqlalchemy.dialects.mysql import insert
 
 from config import *
@@ -86,7 +86,7 @@ def get_dy_games():
     sign = (hashlib.md5(
         (quote(device_ids) + device_type + media_id + user_id + app_secret).encode(
             'utf-8')).hexdigest()).lower()
-    print(sign)
+    # print(sign)
     params = {
         "media_id": media_id,
         "user_id": user_id,
@@ -103,8 +103,21 @@ def get_dy_games():
 
     results = []
     with engine.connect() as conn:
+        select_delete_dy = conn.execute(select([TpGame]).where(
+            TpGame.interface_id == 11
+        )).fetchall()
+        logger.info(len(select_delete_dy))
+        logger.info('---------------{}'.format(int(time.time())))
+
+        delete_ids = [game['id'] for game in select_delete_dy if int(game['enddate']) <= int(time.time())]
+
+
         for game in game_list:
-            print(game)
+            # print(game)
+            select_is_game = conn.execute(select([TpGame]).where(
+                TpGame.game_id == game['advert_id']
+            )).fetchone()
+
             result = {
                 "interface_id": 11,
                 "game_id": str(game['advert_id']),
@@ -122,9 +135,20 @@ def get_dy_games():
                 "label_str": "",
                 "short_intro": "",
             }
-            results.append(result)
-        conn.execute(insert(TpGame).values(results))
-
+            if select_is_game:
+                conn.execute(update(TpGame).values(result).where(
+                    and_(
+                        TpGame.game_id == game['advert_id'],
+                        TpGame.interface_id == 11
+                    )
+                ))
+                if game['advert_id'] in delete_ids:
+                    delete_ids.pop(game['advert_id'])
+            else:
+                conn.execute(insert(TpGame).values(result))
+        conn.execute(delete(TpGame).where(
+            TpGame.id.in_(delete_ids)
+        ))
 
 def get_leader_id(low_user_id, conn):
     select_low_user = conn.execute(select([MUserInfo]).where(
@@ -327,4 +351,4 @@ if __name__ == '__main__':
     # loop.run_until_complete(get_ibx_tasks())
 
     # 多游游戏获取
-    test_inset()
+    get_dy_games()

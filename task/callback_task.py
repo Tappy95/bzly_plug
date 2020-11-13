@@ -1,5 +1,6 @@
 # 麒麟分佣任务
 import asyncio
+from config import *
 import time
 from datetime import datetime, timedelta
 
@@ -13,8 +14,10 @@ from util.log import logger
 # 金币变更任务
 from util.static_methods import serialize, get_pdictionary_key
 
-
 # 流水变更及发放金币
+from util.task_protocol import pub_to_nsq
+
+
 async def cash_exchange(connection, user_id, amount, changed_type, reason, remarks, flow_type=1):
     """
     :param connection:
@@ -30,82 +33,22 @@ async def cash_exchange(connection, user_id, amount, changed_type, reason, remar
     :param reason: 理由
     :return:
     """
-
-    # 查询当前用户金币
-    select_user_current_coin = select([MUserInfo]).where(
-        MUserInfo.user_id == user_id
-    )
-    cursor_cur_coin = await connection.execute(select_user_current_coin)
-    record_cur_coin = await cursor_cur_coin.fetchone()
-    select_user_leader = select([MUserLeader]).where(
-        MUserLeader.user_id == user_id
-    )
-    cursor_leader = await connection.execute(select_user_leader)
-    record_leader = await cursor_leader.fetchone()
-    if record_leader:
-        select_user_partner = select([MPartnerInfo]).where(
-            MPartnerInfo.user_id == record_leader['leader_id']
-        )
-        cursor_partner = await connection.execute(select_user_partner)
-        record_partner = await cursor_partner.fetchone()
-        if record_partner:
-            current_activity = record_partner['activity_points'] + 1
-            if record_leader:
-                update_leader_activity = update(MPartnerInfo).values({
-                    "activity_points": current_activity
-                }).where(
-                    MPartnerInfo.user_id == record_leader['leader_id']
-                )
-                await connection.execute(update_leader_activity)
-    if record_cur_coin:
-
-        # 计算金币余额
-        if flow_type == 1:
-            coin_balance = record_cur_coin['coin'] + amount
-        else:
-            coin_balance = record_cur_coin['coin'] - amount
-            if coin_balance <= 0:
-                logger.info("变更金币失败,余额不足")
-        retry = 3
-        while retry:
-            try:
-                # 插入金币变更信息
-                insert_exchange = {
-                    "user_id": user_id,
-                    "amount": amount,
-                    "flow_type": flow_type,
-                    "changed_type": changed_type,
-                    "changed_time": int(round(time.time() * 1000)),
-                    "status": 1,
-                    "account_type": 0,
-                    "reason": reason,
-                    "remarks": remarks,
-                    "coin_balance": coin_balance
-                }
-                ins_exange = insert(LCoinChange).values(insert_exchange)
-                await connection.execute(ins_exange)
-                # 更改用户金币
-                update_user_coin = update(MUserInfo).values({
-                    "coin": coin_balance
-                }).where(
-                    and_(
-                        MUserInfo.user_id == user_id,
-                        MUserInfo.coin == record_cur_coin['coin']
-                    )
-                )
-                sql_rec = await connection.execute(update_user_coin)
-                if sql_rec == 0:
-                    logger.info("{}机会重试".format(retry))
-                    retry -= 1
-                else:
-                    return True
-            except Exception as e:
-                logger.info(e)
-                logger.info("修改金币失败,请联系管理员")
-                retry -= 1
+    nsq_topic = "callback_queue"
+    nsq_msg = {
+        "task": "reward_task",
+        "data": {
+            "user_id": user_id,
+            "amount": amount,
+            "changed_type": changed_type,
+            "reason": reason,
+            "remarks": remarks,
+            "flow_type": flow_type
+        }
+    }
+    task_status = await pub_to_nsq(NSQ_NSQD_HTTP_ADDR, nsq_topic, nsq_msg)
+    if task_status != 200:
         return False
-    else:
-        return False
+
 
 
 # 裂变任务
@@ -236,6 +179,8 @@ async def cash_exchange_panrtner(connection, partner_info, amount, flow_type=1, 
 
 # 合伙人发放未入账金币
 async def cash_exchange_leader(connection, aimuser_id, leader_id, amount, flow_type=1):
+    if aimuser_id == leader_id:
+        return
     # 确认用户属于二级以下:
     select_ones = select([MUserLeader]).where(
         MUserLeader.referrer == leader_id

@@ -832,7 +832,7 @@ async def post_ywcallback(request):
             remarks=deal['advertName'] + deal['rewardRule'],
             flow_type=1
         )
-        if "充值" not in deal['title']:
+        if "充值" not in deal['rewardRule']:
             fs_result = await fission_schema(
                 connection,
                 aimuser_id=deal['rewardRule'],
@@ -1151,12 +1151,12 @@ async def get_current_day_video_reward(request):
                 remarks="趣变视频奖励",
                 flow_type=1
             )
-            fs_result = await fission_schema(
-                connection,
-                aimuser_id=user_id,
-                task_coin=int(reward_amount)
-            )
-            if c_result and fs_result:
+            # fs_result = await fission_schema(
+            #     connection,
+            #     aimuser_id=user_id,
+            #     task_coin=int(reward_amount)
+            # )
+            if c_result:
                 update_callback_status = update(TpVideoCallback).values({
                     "state": 1
                 }).where(
