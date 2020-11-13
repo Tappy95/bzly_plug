@@ -344,7 +344,7 @@ def update_checkpoint_record():
         )).fetchall()
         # 查询用户当前闯关邀请人闯关数限制
         select_invite_limit = conn.execute(select([MCheckpoint])).fetchall()
-        limit_dict = {limits['checkpoint_number']: int(limits['friends_number']) for limits in select_invite_limit}
+        limit_dict = {limits['checkpoint_number']: int(limits['friends_checkpoint_number']) for limits in select_invite_limit}
 
         for user in select_record:
             # 查询用户时间段内的金币收益

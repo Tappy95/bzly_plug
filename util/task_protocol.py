@@ -58,7 +58,7 @@ class QLTask(BaseTask):
         self._decoded_data = data
 
     def spawn(self, data, to_name=None):
-        task = ANATask(self)
+        task = QLTask(self)
         task.data = data
         if to_name:
             task.to_name = to_name

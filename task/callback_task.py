@@ -33,7 +33,7 @@ async def cash_exchange(connection, user_id, amount, changed_type, reason, remar
     :param reason: 理由
     :return:
     """
-    nsq_topic = "callback_queue"
+    nsq_topic = "ql_callback_queue"
     nsq_msg = {
         "task": "reward_task",
         "data": {

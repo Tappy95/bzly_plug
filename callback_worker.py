@@ -1,5 +1,6 @@
 import json
 import time
+import traceback
 
 from datetime import datetime, timedelta
 
@@ -18,7 +19,7 @@ from util.task_protocol import QLTask
 from aioelasticsearch import Elasticsearch
 
 WORKER_NUMBER = 1
-TOPIC_NAME = "callback_queue"
+TOPIC_NAME = "ql_callback_queue"
 
 engine = create_engine(
     SQLALCHEMY_DATABASE_URI,
@@ -30,14 +31,14 @@ engine = create_engine(
 )
 
 
-def worker_cash_change(connection, task_info):
+def worker_cash_change(connection, cash_info):
     trans = connection.begin()
-    user_id = task_info['user_id']
-    amount = task_info['amount']
-    changed_type = task_info['changed_type']
-    reason = task_info['reason']
-    remarks = task_info['remarks']
-    flow_type = task_info['flow_type']
+    user_id = cash_info['user_id']
+    amount = cash_info['amount']
+    changed_type = cash_info['changed_type']
+    reason = cash_info['reason']
+    remarks = cash_info['remarks']
+    flow_type = cash_info['flow_type']
     try:
         # 查询当前用户金币
         select_user_current_coin = select([MUserInfo]).where(
@@ -129,19 +130,37 @@ def is_partner(connection, user_id):
         return False, 2
 
 
+# 上级用户奖励
+def top_reward(connection, top_user_id, amount):
+
+
+
+
 def worker_fission_schema(connection, task_info):
+    trans = connection.begin()
     # 查上级A
-    top_a = search_top(connection, task_info['user_id'])
-    is_top_a, a_level = is_partner(connection, top_a)
-    if top_a:
-        # 查上级B
-        top_b = search_top(connection, top_a)
-        is_top_b, b_level = is_partner(connection, top_a)
-        if top_b:
-            # 查上级C
-            top_c = search_top(connection, top_b)
-            is_top_c, c_level = is_partner(connection, top_a)
-    return True
+    try:
+        top_a = search_top(connection, task_info['user_id'])
+        is_top_a, a_level = is_partner(connection, top_a)
+        if top_a:
+            # 上级分成
+
+
+            # 查上级B
+            top_b = search_top(connection, top_a)
+            is_top_b, b_level = is_partner(connection, top_a)
+            if top_b:
+                # 查上级C
+                top_c = search_top(connection, top_b)
+                is_top_c, c_level = is_partner(connection, top_a)
+        trans.commit()
+    except Exception as e:
+        logger.info(traceback.print_exc())
+        logger.info(traceback.format_exc())
+        logger.info(e)
+        trans.rollback()
+        raise
+
 
 
 async def callback_handle(group, task):
@@ -161,7 +180,7 @@ async def callback_handle(group, task):
 
 
 def run():
-    input_end = NsqInputEndpoint(TOPIC_NAME, 'callback_worker', WORKER_NUMBER, **INPUT_NSQ_CONF)
+    input_end = NsqInputEndpoint(TOPIC_NAME, 'ql_callback_worker', WORKER_NUMBER, **INPUT_NSQ_CONF)
     logger.info('连接nsq成功,topic_name = {}, nsq_address={}'.format(TOPIC_NAME, INPUT_NSQ_CONF))
     server = pipeflow.Server()
     logger.info("pipeflow开始工作")
