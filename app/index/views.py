@@ -835,7 +835,7 @@ async def post_ywcallback(request):
         if "充值" not in deal['rewardRule']:
             fs_result = await fission_schema(
                 connection,
-                aimuser_id=deal['rewardRule'],
+                aimuser_id=deal['mediaUserId'],
                 task_coin=task_coin
             )
         else:

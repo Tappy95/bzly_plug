@@ -659,10 +659,7 @@ async def get_partner_index(request):
     select_leader_change = select([LCoinChange]).where(
         and_(
             LCoinChange.user_id == user_id,
-            or_(
-                LCoinChange.changed_type == 35,
-                LCoinChange.changed_type == 36,
-            )
+            LCoinChange.changed_type == 5
         )
     )
     cur_l_change = await connection.execute(select_leader_change)
@@ -710,7 +707,7 @@ async def get_partner_index(request):
             "darenRewardImg": "http://qiniu.shouzhuan518.com/玉麒麟规则.png",
             "surplusTime": 0,
             "schemeImg": "http://qiniu.shouzhuan518.com/pro_202010091631585262.png",
-            "apprentice": len(rec_leader)
+            "apprentice": rec['apprentice']
         },
         "message": "操作成功",
         "statusCode": "2000",

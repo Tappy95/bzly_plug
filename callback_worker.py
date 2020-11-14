@@ -119,6 +119,7 @@ def search_top(connection, aimuser_id):
     else:
         return None
 
+
 # 确认用户是否为合伙人,及其合伙人等级
 def is_partner(connection, user_id):
     select_partner = connection.execute(select([MPartnerInfo]).where(
@@ -131,28 +132,163 @@ def is_partner(connection, user_id):
 
 
 # 上级用户奖励
-def top_reward(connection, top_user_id, amount):
+def top_reward(connection, top_user_id, amount, if_partner, low_if_partner, partner_level, floor):
+    """
+
+    :param connection:
+    :param top_user_id: 上级用户ID
+    :param amount: 基础奖励金额
+    :param if_partner: 是否为合伙人
+    :param low_if_partner: 下级是否为合伙人
+    :param partner_level: 合伙人等级
+    :param floor: 第几层上级
+    :return:
+    """
+    reward = amount
+    reason = "下级用户奖励"
+    remarks = "合伙人一级"
+    changed_type = 0
+    # 第一层上级
+    if floor == 'A':
+        # 是合伙人
+        if if_partner:
+            # 玉麒麟
+            if partner_level == 1:
+                reward = int(amount * 0.2)
+                remarks = "合伙人一级直属用户贡献"
+                changed_type = 35
+            elif partner_level == 2:
+                reward = int(amount * 0.2)
+                remarks = "合伙人一级直属用户贡献"
+                changed_type = 35
+        # 不是合伙人
+        else:
+            reward = int(amount * 0.125)
+            remarks = "徒弟贡献"
+            changed_type = 5
+    # 第二层上级
+    elif floor == "B":
+        # 是合伙人
+        if if_partner:
+            # 玉麒麟
+            if partner_level == 1:
+                if low_if_partner:
+                    reward = int(amount * 0.2 * 0.15)
+                    remarks = "合伙人二级直属用户贡献"
+                    changed_type = 36
+                else:
+                    reward = int(amount * 0.075)
+                    remarks = "合伙人二级直属用户贡献"
+                    changed_type = 36
+            # 金麒麟
+            elif partner_level == 2:
+                if low_if_partner:
+                    reward = int(amount * 0.2 * 0.15)
+                    remarks = "合伙人二级直属用户贡献"
+                    changed_type = 36
+                else:
+                    reward = int(amount * 0.075)
+                    remarks = "合伙人二级直属用户贡献"
+                    changed_type = 36
+    # 第三层上级
+    elif floor == "C":
+        # 是合伙人
+        if if_partner:
+            # 玉麒麟
+            if partner_level == 1:
+                if low_if_partner:
+                    reward = int(amount * 0.075 * 0.40)
+                    remarks = "代理推广收益分成"
+                    changed_type = 39
+            elif partner_level == 2:
+                if low_if_partner:
+                    reward = int(amount * 0.075 * 0.40)
+                    remarks = "代理推广收益分成"
+                    changed_type = 39
+
+    cash_info = {
+        "user_id": top_user_id,
+        "amount": reward,
+        "changed_type": changed_type,
+        "reason": reason,
+        "remarks": remarks,
+        "flow_type": 1,
+    }
+    if changed_type != 0:
+        worker_cash_change(connection, cash_info)
+    else:
+        return
 
 
-
-
+# 裂变主入口
 def worker_fission_schema(connection, task_info):
     trans = connection.begin()
     # 查上级A
     try:
         top_a = search_top(connection, task_info['user_id'])
-        is_top_a, a_level = is_partner(connection, top_a)
+        top_b = None
         if top_a:
+            is_top_a, a_level = is_partner(connection, top_a)
             # 上级分成
-
+            top_reward(connection, top_a, task_info['amount'], is_top_a, False, a_level, 'A')
 
             # 查上级B
             top_b = search_top(connection, top_a)
-            is_top_b, b_level = is_partner(connection, top_a)
+
             if top_b:
+                is_top_b, b_level = is_partner(connection, top_b)
+                # 上级分成
+                top_reward(connection, top_b, task_info['amount'], is_top_b, is_top_a, b_level, 'B')
+
                 # 查上级C
                 top_c = search_top(connection, top_b)
-                is_top_c, c_level = is_partner(connection, top_a)
+                if top_c:
+                    is_top_c, c_level = is_partner(connection, top_c)
+                    # 上级分成
+                    top_reward(connection, top_c, task_info['amount'], is_top_c, is_top_b, c_level, 'C')
+
+        # 发放领导人奖励
+        select_leader = connection.execute(select([MUserLeader]).where(
+            MUserLeader.user_id == task_info['user_id']
+        )).fetchone()
+        if select_leader['leader_id'] != task_info['user_id'] and select_leader['leader_id'] != top_a:
+            if top_b and select_leader['leader_id'] != top_b:
+                # 查询当前用户金币
+                select_user_current_coin = select([MPartnerInfo]).where(
+                    MPartnerInfo.user_id == select_leader['leader_id']
+                )
+                cursor_cur_coin = connection.execute(select_user_current_coin)
+                record_cur_coin = cursor_cur_coin.fetchone()
+                if record_cur_coin:
+                    amount = int(task_info['amount'] * 0.075)
+                    # 计算金币余额
+                    coin_balance = record_cur_coin['future_coin'] + amount
+                    # activity = record_cur_coin['activity_points'] + 1
+                    # 插入金币变更信息
+                    insert_exchange = {
+                        "user_id": select_leader['leader_id'],
+                        "amount": amount,
+                        "flow_type": 1,
+                        "changed_type": 38,
+                        "changed_time": int(round(time.time() * 1000)),
+                        "status": 1,
+                        "account_type": 0,
+                        "reason": "下级用户贡献",
+                        "remarks": "合伙人未入账金币(二级以下用户贡献)",
+                        "coin_balance": coin_balance
+                    }
+                    ins_exange = insert(LCoinChange).values(insert_exchange)
+                    connection.execute(ins_exange)
+                    # 更改用户金币
+                    update_user_coin = update(MPartnerInfo).values({
+                        "future_coin": coin_balance
+                    }).where(
+                        and_(
+                            MPartnerInfo.user_id == select_leader['leader_id'],
+                            MPartnerInfo.future_coin == record_cur_coin['future_coin']
+                        )
+                    )
+                    connection.execute(update_user_coin)
         trans.commit()
     except Exception as e:
         logger.info(traceback.print_exc())
@@ -160,7 +296,6 @@ def worker_fission_schema(connection, task_info):
         logger.info(e)
         trans.rollback()
         raise
-
 
 
 async def callback_handle(group, task):
