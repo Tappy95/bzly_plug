@@ -122,7 +122,9 @@ async def check_currnet_invite(connection, user_id, current_invite, limit_checkp
                 "current_invite":len(effect_apprentice)
             }
         ).where(
-            MCheckpointRecord.user_id == user_id,
-            MCheckpointRecord.state == 1
+            and_(
+                MCheckpointRecord.user_id == user_id,
+                MCheckpointRecord.state == 1
+            )
         ))
     return len(effect_apprentice)

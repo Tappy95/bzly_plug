@@ -98,12 +98,12 @@ async def ibx_call_back_test():
     app_key = "142792891"
     device = "安卓"
     device_info = "863270643441130"
-    target_id = "112e9bbb482064988f79c07207693fc8"
+    target_id = "feb4a664534b4a8e949ba3afb17cd1a9"
     game_id = "11474"
     app_reward = "0.85"
-    user_reward = "0.55"
+    user_reward = "2000"
 
-    order_id = "99869465959661052"
+    order_id = "9986946595565123"
     params = {
         "app_key": app_key,
         "device": device,
@@ -124,9 +124,9 @@ async def ibx_call_back_test():
     }
     print(params['sign'])
     async with aiohttp.ClientSession() as client:
-        # async with client.get('http://lottery.shouzhuan518.com/py/xwcallback', params=params) as resp:
-        async with client.post('http://localhost:8090/ibxcallback', data=params) as resp:
-            assert resp.status == 200
+        async with client.post('http://lottery.shouzhuan518.com/py/ibxcallback', data=params) as resp:
+        # async with client.post('http://localhost:8090/ibxcallback', data=params) as resp:
+        #     assert resp.status == 200
             r = await resp.json()
             print(r)
 
@@ -136,7 +136,7 @@ async def yw_call_back_test():
     m = hashlib.md5()
 
     orderNo = "142792891"
-    rewardDataJson = '{"advertName":"\u6251\u5ba2\u6355\u9c7c","advertIcon":"http:\/\/imgs1.zhuoyixia.com\/5d0ae875d7ffc.png","rewardRule":"\u5168\u573a\u4efb\u610f\u6e38\u620f\u7d2f\u8ba1\u8d62\u53d6\u91d1\u5e01 5\u5343","stageId":"1","stageNum":"6","rewardType":"1","isSubsidy":"0","mediaMoney":"0.60","rewardUserRate":"60.00","currencyRate":"1.00","userMoney":"0.36","userCurrency":"0.36","mediaUserId":"2cfdd8e67aaf45deb3cb242a1621f2de","receivedTime":"1576646036"}'
+    rewardDataJson = '{"advertName":"\u6251\u5ba2\u6355\u9c7c","advertIcon":"http:\/\/imgs1.zhuoyixia.com\/5d0ae875d7ffc.png","rewardRule":"\u5168\u573a\u4efb\u610f\u6e38\u620f\u7d2f\u8ba1\u8d62\u53d6\u91d1\u5e01 5\u5343","stageId":"1","stageNum":"6","rewardType":"1","isSubsidy":"0","mediaMoney":"0.60","rewardUserRate":"60.00","currencyRate":"1.00","userMoney":"0.36","userCurrency":"0.36","mediaUserId":"735e262f38de420b9a545a884c89cba1","receivedTime":"1576646036"}'
     time = "1601913600"
     params = {
         "orderNo": orderNo,
@@ -148,8 +148,8 @@ async def yw_call_back_test():
     }
     print(params['sign'])
     async with aiohttp.ClientSession() as client:
-        # async with client.get('http://lottery.shouzhuan518.com/py/xwcallback', params=params) as resp:
-        async with client.post('http://localhost:7999/ywcallback', data=params) as resp:
+        async with client.get('http://lottery.shouzhuan518.com/py/ywcallback', params=params) as resp:
+        # async with client.post('http://localhost:7999/ywcallback', data=params) as resp:
             assert resp.status == 200
             r = await resp.json()
             print(r)

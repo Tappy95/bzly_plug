@@ -172,7 +172,7 @@ if __name__ == '__main__':
     scheduler = BlockingScheduler()
 
     scheduler.add_job(update_partner_reward, "interval", minutes=4, next_run_time=datetime.now())
-    scheduler.add_job(update_wage_task, "interval", minutes=1, next_run_time=datetime.now())
+    # scheduler.add_job(update_wage_task, "interval", minutes=1, next_run_time=datetime.now())
 
     # scheduler.add_job(update_enddate_invite, "interval", seconds=2)
     # scheduler.add_job(my_clock, "cron", hour='21', minute='48')
