@@ -94,3 +94,8 @@ async def leader_detail(connection, user_id):
                 info['account_id'] = user['account_id']
 
     return list_info, sum_1, sum_2
+
+
+# 返回当前通关人数,并
+async def check_currnet_invite(connection, user_id, current_invite, limit_checkpoint_number):
+

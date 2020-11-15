@@ -1,7 +1,7 @@
 import json
 import time
 import traceback
-
+from models.alchemy_models import *
 from datetime import datetime, timedelta
 
 import emoji as emoji
@@ -168,14 +168,15 @@ def top_reward(connection, top_user_id, amount, if_partner, low_if_partner, part
             changed_type = 5
     # 第二层上级
     elif floor == "B":
+        logger.info("{}{}{}".format(if_partner, partner_level, low_if_partner))
         # 是合伙人
         if if_partner:
             # 玉麒麟
             if partner_level == 1:
                 if low_if_partner:
                     reward = int(amount * 0.2 * 0.15)
-                    remarks = "合伙人二级直属用户贡献"
-                    changed_type = 36
+                    remarks = "代理推广收益分成"
+                    changed_type = 39
                 else:
                     reward = int(amount * 0.075)
                     remarks = "合伙人二级直属用户贡献"
@@ -184,14 +185,15 @@ def top_reward(connection, top_user_id, amount, if_partner, low_if_partner, part
             elif partner_level == 2:
                 if low_if_partner:
                     reward = int(amount * 0.2 * 0.15)
-                    remarks = "合伙人二级直属用户贡献"
-                    changed_type = 36
+                    remarks = "代理推广收益分成"
+                    changed_type = 39
                 else:
                     reward = int(amount * 0.075)
                     remarks = "合伙人二级直属用户贡献"
                     changed_type = 36
     # 第三层上级
     elif floor == "C":
+        logger.info("{}{}{}{}".format(floor, if_partner, partner_level, low_if_partner))
         # 是合伙人
         if if_partner:
             # 玉麒麟
@@ -237,6 +239,7 @@ def worker_fission_schema(connection, task_info):
 
             if top_b:
                 is_top_b, b_level = is_partner(connection, top_b)
+                logger.info("{},{}".format(is_top_b, b_level))
                 # 上级分成
                 top_reward(connection, top_b, task_info['amount'], is_top_b, is_top_a, b_level, 'B')
 
@@ -245,7 +248,10 @@ def worker_fission_schema(connection, task_info):
                 if top_c:
                     is_top_c, c_level = is_partner(connection, top_c)
                     # 上级分成
-                    top_reward(connection, top_c, task_info['amount'], is_top_c, is_top_b, c_level, 'C')
+                    if not (is_top_a and is_top_b):
+                        logger.info("{}{}".format(is_top_b, is_top_a))
+
+                        top_reward(connection, top_c, task_info['amount'], is_top_c, is_top_b, c_level, 'C')
 
         # 发放领导人奖励
         select_leader = connection.execute(select([MUserLeader]).where(
@@ -298,6 +304,39 @@ def worker_fission_schema(connection, task_info):
         raise
 
 
+# 更新闯关状态
+def worker_checkpoint_task(connection, task_info):
+    # 查询是否处于闯关状态
+    select_user_checkpoint = connection.execute(select([MCheckpointRecord]).where(
+        and_(
+            MCheckpointRecord.user_id == task_info['user_id'],
+            MCheckpointRecord.state == 1
+        )
+    )).fetchone()
+    if select_user_checkpoint:
+        # 初始化值
+        # current_invite = select_user_checkpoint['current_invite'] if select_user_checkpoint['current_invite'] else 0
+        # current_points = select_user_checkpoint['current_points'] if select_user_checkpoint['current_points'] else 0
+        current_videos = select_user_checkpoint['current_videos'] if select_user_checkpoint['current_videos'] else 0
+        current_games = select_user_checkpoint['current_games'] if select_user_checkpoint['current_games'] else 0
+
+        if task_info['changed_type'] == 7:
+            current_games += 1
+        elif task_info['changed_type'] == 30:
+            current_videos += 1
+
+        # 更新闯关字段值
+        connection.execute(update(MCheckpointRecord).values({
+            "current_videos": current_videos,
+            "current_games": current_games,
+        }).where(
+            and_(
+                MCheckpointRecord.user_id == task_info['user_id'],
+                MCheckpointRecord.state == 1
+            )
+        ))
+
+
 async def callback_handle(group, task):
     ql_task = QLTask(task)
     task_type = ql_task.task_type
@@ -306,12 +345,26 @@ async def callback_handle(group, task):
     logger.info(task_log)
     time_now = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
     with engine.connect() as conn:
-        worker_cash_change(conn, task_info)
-        # 游戏试玩, 高额任务, 视频奖励->裂变
-        if task_info['changed_type'] == 7 \
-                or task_info['changed_type'] == 10 \
-                or task_info['changed_type'] == 30:
-            worker_fission_schema(conn, task_info)
+        trans = conn.begin()
+        try:
+            worker_cash_change(conn, task_info)
+            # 游戏试玩, 高额任务, 视频奖励->裂变
+            if task_info['changed_type'] == 7 \
+                    or task_info['changed_type'] == 10 \
+                    or task_info['changed_type'] == 30:
+                # 裂变分润
+                worker_fission_schema(conn, task_info)
+                # 更新闯关
+                worker_checkpoint_task(conn, task_info)
+            # 更新每日工资
+            # 更新
+            trans.commit()
+
+        except Exception as e:
+            logger.info(e)
+            logger.info(traceback.print_exc())
+            logger.info(traceback.format_exc())
+            trans.rollback()
 
 
 def run():
