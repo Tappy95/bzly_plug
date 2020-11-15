@@ -1,8 +1,8 @@
 from datetime import datetime, timedelta
 
-from sqlalchemy import select, and_
+from sqlalchemy import select, and_, update
 
-from models.alchemy_models import MPartnerInfo, MUserLeader, LLeaderChange, MUserInfo
+from models.alchemy_models import *
 
 
 async def leader_detail(connection, user_id):
@@ -98,4 +98,31 @@ async def leader_detail(connection, user_id):
 
 # 返回当前通关人数,并
 async def check_currnet_invite(connection, user_id, current_invite, limit_checkpoint_number):
+    effect_apprentice = []
+    select_apprentice = select([MUserLeader]).where(
+        MUserLeader.referrer ==  user_id
+    )
+    cur_apprentice = await connection.execute(select_apprentice)
+    rec_apprentice = await cur_apprentice.fetchall()
+    for apprentice in rec_apprentice:
+        select_apprentice_checkpoint = select([MCheckpointRecord]).where(
+            and_(
+                MCheckpointRecord.user_id == apprentice['user_id'],
+                MCheckpointRecord.state == 2
+            )
+        )
+        cur_app_checkpoint = await connection.execute(select_apprentice_checkpoint)
+        rec_app_checkpoint = await cur_app_checkpoint.fetchall()
+        if len(rec_app_checkpoint) >= limit_checkpoint_number:
+            effect_apprentice.append(apprentice['user_id'])
 
+    if current_invite != len(effect_apprentice):
+        await connection.execute(update(MCheckpointRecord).values(
+            {
+                "current_invite":len(effect_apprentice)
+            }
+        ).where(
+            MCheckpointRecord.user_id == user_id,
+            MCheckpointRecord.state == 1
+        ))
+    return len(effect_apprentice)

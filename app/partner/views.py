@@ -107,7 +107,7 @@ async def get_checkpoint(request):
             "video_number": rec_point['video_number'],
             "current_games": rec['current_games'] if rec and rec['current_games'] else 0,
             "game_number": rec_point['game_number'],
-            "current_invite": rec['current_invite'] if rec else 0,
+            "current_invite": current_invite if rec and rec_point else 0,
             "friends_number": rec_point['friends_number'],
             "current_points": rec['current_points'] if rec else 0,
             "friends_checkpoint_number": rec_point['friends_checkpoint_number'],

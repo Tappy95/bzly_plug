@@ -337,6 +337,38 @@ def worker_checkpoint_task(connection, task_info):
         ))
 
 
+# 更新每日工资状态
+def worker_wage_task(conn, task_info):
+    now = datetime.now()
+    today_time = now - timedelta(hours=now.hour, minutes=now.minute, seconds=now.second,
+                                 microseconds=now.microsecond)
+    select_wage_record = conn.execute(select([MWageRecord]).where(
+        and_(
+            MWageRecord.status == 1,
+            MWageRecord.create_time == today_time,
+            MWageRecord.user_id == task_info['user_id']
+        )
+    )).fetchone()
+    current_game = select_wage_record['current_game'] if select_wage_record else 0
+    current_video = select_wage_record['current_video'] if select_wage_record else 0
+    # 更新每日任务数据
+    if task_info['changed_type'] == 7:
+        current_game += 1
+    elif task_info['changed_type'] == 30:
+        current_video += 1
+    if select_wage_record:
+        conn.execute(update(MWageRecord).values({
+            "current_game": current_game,
+            "current_video": current_video,
+        }).where(
+            and_(
+                MWageRecord.user_id == select_wage_record['user_id'],
+                MWageRecord.create_time == select_wage_record['create_time']
+            )
+        ))
+    logger.info("{}:game->{},video->{}".format(task_info['user_id'], current_game, current_video))
+
+
 async def callback_handle(group, task):
     ql_task = QLTask(task)
     task_type = ql_task.task_type
@@ -356,7 +388,8 @@ async def callback_handle(group, task):
                 worker_fission_schema(conn, task_info)
                 # 更新闯关
                 worker_checkpoint_task(conn, task_info)
-            # 更新每日工资
+                # 更新每日工资
+                worker_wage_task(conn, task_info)
             # 更新
             trans.commit()
 
