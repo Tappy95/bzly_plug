@@ -257,44 +257,45 @@ def worker_fission_schema(connection, task_info):
         select_leader = connection.execute(select([MUserLeader]).where(
             MUserLeader.user_id == task_info['user_id']
         )).fetchone()
-        if select_leader['leader_id'] != task_info['user_id'] and select_leader['leader_id'] != top_a:
-            if top_b and select_leader['leader_id'] != top_b:
-                # 查询当前用户金币
-                select_user_current_coin = select([MPartnerInfo]).where(
-                    MPartnerInfo.user_id == select_leader['leader_id']
-                )
-                cursor_cur_coin = connection.execute(select_user_current_coin)
-                record_cur_coin = cursor_cur_coin.fetchone()
-                if record_cur_coin:
-                    amount = int(task_info['amount'] * 0.075)
-                    # 计算金币余额
-                    coin_balance = record_cur_coin['future_coin'] + amount
-                    # activity = record_cur_coin['activity_points'] + 1
-                    # 插入金币变更信息
-                    insert_exchange = {
-                        "user_id": select_leader['leader_id'],
-                        "amount": amount,
-                        "flow_type": 1,
-                        "changed_type": 38,
-                        "changed_time": int(round(time.time() * 1000)),
-                        "status": 1,
-                        "account_type": 0,
-                        "reason": "下级用户贡献",
-                        "remarks": "合伙人未入账金币(二级以下用户贡献)",
-                        "coin_balance": coin_balance
-                    }
-                    ins_exange = insert(LCoinChange).values(insert_exchange)
-                    connection.execute(ins_exange)
-                    # 更改用户金币
-                    update_user_coin = update(MPartnerInfo).values({
-                        "future_coin": coin_balance
-                    }).where(
-                        and_(
-                            MPartnerInfo.user_id == select_leader['leader_id'],
-                            MPartnerInfo.future_coin == record_cur_coin['future_coin']
-                        )
+        if select_leader['leader_id'] != task_info['user_id']:
+            if top_a and select_leader['leader_id'] != top_a:
+                if top_b and select_leader['leader_id'] != top_b:
+                    # 查询当前用户金币
+                    select_user_current_coin = select([MPartnerInfo]).where(
+                        MPartnerInfo.user_id == select_leader['leader_id']
                     )
-                    connection.execute(update_user_coin)
+                    cursor_cur_coin = connection.execute(select_user_current_coin)
+                    record_cur_coin = cursor_cur_coin.fetchone()
+                    if record_cur_coin:
+                        amount = int(task_info['amount'] * 0.075)
+                        # 计算金币余额
+                        coin_balance = record_cur_coin['future_coin'] + amount
+                        # activity = record_cur_coin['activity_points'] + 1
+                        # 插入金币变更信息
+                        insert_exchange = {
+                            "user_id": select_leader['leader_id'],
+                            "amount": amount,
+                            "flow_type": 1,
+                            "changed_type": 38,
+                            "changed_time": int(round(time.time() * 1000)),
+                            "status": 1,
+                            "account_type": 0,
+                            "reason": "下级用户贡献",
+                            "remarks": "合伙人未入账金币(二级以下用户贡献)",
+                            "coin_balance": coin_balance
+                        }
+                        ins_exange = insert(LCoinChange).values(insert_exchange)
+                        connection.execute(ins_exange)
+                        # 更改用户金币
+                        update_user_coin = update(MPartnerInfo).values({
+                            "future_coin": coin_balance
+                        }).where(
+                            and_(
+                                MPartnerInfo.user_id == select_leader['leader_id'],
+                                MPartnerInfo.future_coin == record_cur_coin['future_coin']
+                            )
+                        )
+                        connection.execute(update_user_coin)
         trans.commit()
     except Exception as e:
         logger.info(traceback.print_exc())

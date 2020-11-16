@@ -1,3 +1,4 @@
+import time
 from datetime import datetime, timedelta
 
 from sqlalchemy import select, and_, update
@@ -44,7 +45,7 @@ async def leader_detail(connection, user_id):
     if one_ids:
         select_one_leader_change = select([LLeaderChange]).where(
             and_(
-                LLeaderChange.create_time > datetime(2020,11,7),
+                LLeaderChange.create_time > datetime(2020, 11, 7),
                 LLeaderChange.leader_id.in_(one_ids),
                 LLeaderChange.total_reward > 0
             )
@@ -81,7 +82,6 @@ async def leader_detail(connection, user_id):
                 }
                 list_info.append(result)
 
-
     user_ids = [user['id'] for user in list_info]
     select_user = select([MUserInfo]).where(
         MUserInfo.user_id.in_(user_ids)
@@ -97,10 +97,13 @@ async def leader_detail(connection, user_id):
 
 
 # 返回当前通关人数,并
-async def check_currnet_invite(connection, user_id, current_invite, limit_checkpoint_number):
+async def check_current_invite(connection, user_id, current_invite, limit_checkpoint_number, create_time):
     effect_apprentice = []
-    select_apprentice = select([MUserLeader]).where(
-        MUserLeader.referrer ==  user_id
+    select_apprentice = select([MUserInfo]).where(
+        and_(
+            MUserInfo.referrer == user_id,
+            MUserInfo.recommended_time >= create_time
+        )
     )
     cur_apprentice = await connection.execute(select_apprentice)
     rec_apprentice = await cur_apprentice.fetchall()
@@ -119,7 +122,7 @@ async def check_currnet_invite(connection, user_id, current_invite, limit_checkp
     if current_invite != len(effect_apprentice):
         await connection.execute(update(MCheckpointRecord).values(
             {
-                "current_invite":len(effect_apprentice)
+                "current_invite": len(effect_apprentice)
             }
         ).where(
             and_(
@@ -128,3 +131,33 @@ async def check_currnet_invite(connection, user_id, current_invite, limit_checkp
             )
         ))
     return len(effect_apprentice)
+
+
+async def check_current_coin(connection, user_id, before_current_coin, create_time):
+    # 查询用户时间段内的金币收益
+    select_change = select([LCoinChange]).where(
+        and_(
+            LCoinChange.user_id == user_id,
+            LCoinChange.flow_type == 1,
+            LCoinChange.changed_time > create_time,
+            LCoinChange.changed_time < int(time.time() * 1000),
+            LCoinChange.remarks != "徒弟提现贡献",
+            LCoinChange.changed_type != 12
+        )
+    )
+    cur_coin = await connection.execute(select_change)
+    rec_coin = await cur_coin.fetchall()
+    current_coin = sum([change['amount'] for change in rec_coin])
+
+    if current_coin != before_current_coin:
+        await connection.execute(update(MCheckpointRecord).values(
+            {
+                "current_coin": current_coin
+            }
+        ).where(
+            and_(MCheckpointRecord.user_id == user_id,
+                 MCheckpointRecord.state == 1)
+
+        ))
+
+    return current_coin

@@ -17,7 +17,7 @@ from models.alchemy_models import MUserInfo, t_tp_pcdd_callback, PDictionary, t_
     t_tp_ibx_callback, TpJxwCallback, TpYwCallback, TpDyCallback, TpZbCallback, LCoinChange, MChannelInfo, MChannel, \
     MCheckpointRecord, MCheckpoint, MCheckpointIncome, MCheckpointIncomeChange, MUserLeader, LLeaderChange, \
     LPartnerChange, MPartnerInfo, MWageRecord, MWageLevel
-from services.partner import leader_detail, check_currnet_invite
+from services.partner import leader_detail, check_current_invite, check_current_coin
 from task.callback_task import fission_schema, cash_exchange, select_user_id, get_channel_user_ids, get_callback_infos, \
     insert_exchange_cash
 from task.check_sign import check_xw_sign, check_ibx_sign, check_jxw_sign, check_yw_sign, check_dy_sign, check_zb_sign
@@ -95,13 +95,12 @@ async def get_checkpoint(request):
 
     # 查询下属闯关大于指标数个数
     if rec and rec_point:
-        current_invite = await check_currnet_invite(connection, user_id, rec['current_invite'],
-                                                    rec_point['friends_checkpoint_number'])
-
-    if rec_point:
+        current_invite = await check_current_invite(connection, user_id, rec['current_invite'],
+                                                    rec_point['friends_checkpoint_number'], rec['create_time'])
+        current_coin = await check_current_coin(connection, user_id, rec['current_coin'], rec['create_time'])
         result = {
             "checkpoint_number": rec_point['checkpoint_number'],
-            "current_coin": rec['current_coin'] if rec else 0,
+            "current_coin": current_coin if rec else 0,
             "gold_number": rec_point['gold_number'],
             "current_videos": rec['current_videos'] if rec and rec['current_videos'] else 0,
             "video_number": rec_point['video_number'],
@@ -237,6 +236,8 @@ async def post_checkpoint_point(request):
         current_coin=insert_stmt.inserted.current_coin,
         current_invite=insert_stmt.inserted.current_invite,
         current_points=insert_stmt.inserted.current_points,
+        current_videos=insert_stmt.inserted.current_videos,
+        current_games=insert_stmt.inserted.current_games,
         reward_amount=insert_stmt.inserted.reward_amount,
         state=insert_stmt.inserted.state
     )
