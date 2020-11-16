@@ -10,7 +10,7 @@ from urllib.parse import quote
 from config import *
 
 from aiohttp import web
-from sqlalchemy import select, update, and_, text, or_
+from sqlalchemy import select, update, and_, text, or_, delete
 from sqlalchemy.dialects.mysql import insert
 
 from models.alchemy_models import MUserInfo, t_tp_pcdd_callback, PDictionary, t_tp_xw_callback, TpTaskInfo, \
@@ -59,7 +59,7 @@ async def get_checkpoint(request):
         # 上一关已完成
         if rec['state'] == 2:
             # 上一关大于等于第七关
-            if rec['checkpoint_number'] >= 7:
+            if rec['checkpoint_number'] > 7:
                 return web.json_response({
                     "code": 200,
                     "message": "已达终点"
@@ -81,7 +81,7 @@ async def get_checkpoint(request):
                 }))
     # 查询关卡具体指标
     select_user_point = select([MCheckpointRecord]).where(
-        MCheckpointRecord.user_id == user_id
+            MCheckpointRecord.user_id == user_id
     ).order_by(MCheckpointRecord.checkpoint_number.desc()).limit(1)
     cur = await connection.execute(select_user_point)
     rec = await cur.fetchone()
@@ -340,7 +340,6 @@ async def post_checkpoint_card(request):
     rec_check = await cur_check.fetchone()
     if rec['current_coin'] < rec_check['gold_number'] or \
             rec['current_invite'] < rec_check['friends_number'] or \
-            rec['current_points'] < rec_check['friends_checkpoint_number'] or \
             rec['current_videos'] < rec_check['video_number'] or \
             rec['current_games'] < rec_check['game_number']:
         return web.json_response({
@@ -380,6 +379,11 @@ async def post_checkpoint_card(request):
     #         "reward_amount": 0,
     #         "state": 0
     #     }))
+    if r_json['checkpoint_number'] == '7':
+        await connection.execute(delete(MCheckpointRecord).where(
+            MCheckpointRecord.user_id == user_id
+        ))
+        logger.info("ddddddddddddddddddddddddddddddddddddd")
     json_result = {
         "code": 200,
         "message": "本关奖励顺利发放"
@@ -842,7 +846,7 @@ async def get_partner_reward_detail(request):
     return web.json_response(json_result)
 
 
-# 团队奖励明细
+# 合伙人奖励明细
 @routes.get('/partner/team_detail')
 async def get_partner_team_detail(request):
     params = {**request.query}
