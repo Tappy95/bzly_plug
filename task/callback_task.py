@@ -48,6 +48,8 @@ async def cash_exchange(connection, user_id, amount, changed_type, reason, remar
     task_status = await pub_to_nsq(NSQ_NSQD_HTTP_ADDR, nsq_topic, nsq_msg)
     if task_status != 200:
         return False
+    else:
+        return True
 
 
 

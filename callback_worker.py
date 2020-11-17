@@ -257,7 +257,7 @@ def worker_fission_schema(connection, task_info):
         select_leader = connection.execute(select([MUserLeader]).where(
             MUserLeader.user_id == task_info['user_id']
         )).fetchone()
-        if select_leader['leader_id'] != task_info['user_id']:
+        if select_leader and select_leader['leader_id'] != task_info['user_id']:
             if top_a and select_leader['leader_id'] != top_a:
                 if top_b and select_leader['leader_id'] != top_b:
                     # 查询当前用户金币

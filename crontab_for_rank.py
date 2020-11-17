@@ -486,6 +486,7 @@ def update_user_leader():
         select_user = conn.execute(select([MUserInfo])).fetchall()
         select_leader = conn.execute(select([MUserLeader])).fetchall()
         user_leader_ids = [leader_info['user_id'] for leader_info in select_leader]
+
         for user in select_user:
             if user['user_id'] not in user_leader_ids:
                 select_refer_leader = conn.execute(select([MUserLeader]).where(

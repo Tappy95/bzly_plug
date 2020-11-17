@@ -81,7 +81,7 @@ async def get_checkpoint(request):
                 }))
     # 查询关卡具体指标
     select_user_point = select([MCheckpointRecord]).where(
-            MCheckpointRecord.user_id == user_id
+        MCheckpointRecord.user_id == user_id
     ).order_by(MCheckpointRecord.checkpoint_number.desc()).limit(1)
     cur = await connection.execute(select_user_point)
     rec = await cur.fetchone()
@@ -537,13 +537,13 @@ async def post_user_wage(request):
                 "message": "接取成功",
                 "data": {
                     "wage_level": rec_wage_level['wage_level'],
-                    "wage_info": rec_wage_level['wage_level'],
+                    "wage_info": rec_wage_level['wage_info'],
                     "status": 1,
                     "current_video": 0,
                     "current_game": 0,
-                    "game_number": rec_wage_level['wage_level'],
-                    "video_number": rec_wage_level['wage_level'],
-                    "reward": rec_wage_level['wage_level']
+                    "game_number": rec_wage_level['game_number'],
+                    "video_number": rec_wage_level['video_number'],
+                    "reward": rec_wage_level['reward']
                 }
             }
         except Exception as e:
@@ -656,7 +656,7 @@ async def post_wage_cash(request):
     else:
         json_result = {
             "code": 400,
-            "message": "清先接取每日工资任务"
+            "message": "请先接取每日工资任务"
         }
     return web.json_response(json_result)
 
@@ -951,7 +951,8 @@ async def post_boost(request):
     if rec_today:
         return web.json_response({
             "code": 400,
-            "message": "您今天已经助力过啦!"
+            "message": "您今天已经助力过啦!",
+            "reward": 0
         })
         # 查询leader闯关状态 state = 1
     if rec:
@@ -982,22 +983,26 @@ async def post_boost(request):
             if c_result:
                 return web.json_response({
                     "code": 200,
-                    "message": "助力成功"
+                    "message": "助力成功",
+                    "reward": amount
                 })
             else:
                 return web.json_response({
                     "code": 400,
-                    "message": "助力失败,请联系管理员"
+                    "message": "助力失败,请联系管理员",
+                    "reward": 0
                 })
         else:
             return web.json_response({
                 "code": 400,
-                "message": "上级合伙人不在闯关状态,无法助力"
+                "message": "上级合伙人不在闯关状态,无法助力",
+                "reward": 0
             })
     else:
         return web.json_response({
             "code": 400,
-            "message": "无上级合伙人可助力"
+            "message": "无上级合伙人可助力",
+            "reward": 0
         })
 
 
