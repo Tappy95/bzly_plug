@@ -98,12 +98,12 @@ async def ibx_call_back_test():
     app_key = "142792891"
     device = "安卓"
     device_info = "863270643441130"
-    target_id = "26224d1456ad4d8c9d0eb116e4090753"
+    target_id = "735e262f38de420b9a545a884c89cba1"
     game_id = "11474"
     app_reward = "0.85"
     user_reward = "2000"
 
-    order_id = "99869465955651232"
+    order_id = "9986946595565988"
     params = {
         "app_key": app_key,
         "device": device,
