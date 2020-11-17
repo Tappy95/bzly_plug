@@ -340,34 +340,61 @@ def worker_checkpoint_task(connection, task_info):
 
 # 更新每日工资状态
 def worker_wage_task(conn, task_info):
-    now = datetime.now()
-    today_time = now - timedelta(hours=now.hour, minutes=now.minute, seconds=now.second,
-                                 microseconds=now.microsecond)
-    select_wage_record = conn.execute(select([MWageRecord]).where(
-        and_(
-            MWageRecord.status == 1,
-            MWageRecord.create_time == today_time,
-            MWageRecord.user_id == task_info['user_id']
-        )
-    )).fetchone()
-    current_game = select_wage_record['current_game'] if select_wage_record else 0
-    current_video = select_wage_record['current_video'] if select_wage_record else 0
-    # 更新每日任务数据
-    if task_info['changed_type'] == 7:
-        current_game += 1
-    elif task_info['changed_type'] == 30:
-        current_video += 1
-    if select_wage_record:
-        conn.execute(update(MWageRecord).values({
-            "current_game": current_game,
-            "current_video": current_video,
-        }).where(
+    trans = conn.begin()
+    try:
+        now = datetime.now()
+        today_time = now - timedelta(hours=now.hour, minutes=now.minute, seconds=now.second,
+                                     microseconds=now.microsecond)
+        select_wage_record = conn.execute(select([MWageRecord]).where(
             and_(
-                MWageRecord.user_id == select_wage_record['user_id'],
-                MWageRecord.create_time == select_wage_record['create_time']
+                MWageRecord.status == 1,
+                MWageRecord.create_time == today_time,
+                MWageRecord.user_id == task_info['user_id']
             )
-        ))
-    logger.info("{}:game->{},video->{}".format(task_info['user_id'], current_game, current_video))
+        )).fetchone()
+        current_game = select_wage_record['current_game'] if select_wage_record else 0
+        current_video = select_wage_record['current_video'] if select_wage_record else 0
+
+        if select_wage_record:
+            # 更新每日任务数据
+            if task_info['changed_type'] == 7:
+                current_game += 1
+            elif task_info['changed_type'] == 30:
+                current_video += 1
+            # 查询工资等级指标
+
+            select_wage_level = conn.execute(select([MWageLevel]).where(
+                MWageLevel.wage_level == select_wage_record['wage_level']
+            )).fetchone()
+            # 判断指标并更新结果
+            result = {
+                "current_game": current_game,
+                "current_video": current_video,
+            }
+            if current_game >= select_wage_level['game_number'] and \
+                    current_video >= select_wage_level['video_number']:
+                result["status"] = 2,
+                result["reward"] = select_wage_level['reward'],
+                result["update_time"] = datetime.now()
+
+            # 更新每日工资
+            conn.execute(update(MWageRecord).values(result).where(
+                and_(
+                    MWageRecord.user_id == select_wage_record['user_id'],
+                    MWageRecord.create_time == select_wage_record['create_time']
+                )
+            ))
+            logger.info("{}:game->{},video->{}".format(task_info['user_id'], current_game, current_video))
+
+        else:
+            return False
+        trans.commit()
+        return True
+    except Exception as e:
+        logger.info(e)
+        traceback.print_exc()
+        trans.rollback()
+        return False
 
 
 async def callback_handle(group, task):
@@ -385,13 +412,17 @@ async def callback_handle(group, task):
             if task_info['changed_type'] == 7 \
                     or task_info['changed_type'] == 10 \
                     or task_info['changed_type'] == 30:
-                # 裂变分润
-                if "充值" not in task_info['remarks']:
-                    worker_fission_schema(conn, task_info)
-                # 更新闯关
-                worker_checkpoint_task(conn, task_info)
+
                 # 更新每日工资
-                worker_wage_task(conn, task_info)
+                wage_result = worker_wage_task(conn, task_info)
+
+                if not wage_result:
+                    # 裂变分润
+                    if "充值" not in task_info['remarks']:
+                        worker_fission_schema(conn, task_info)
+                    # 更新闯关
+                    worker_checkpoint_task(conn, task_info)
+
             # 更新
             trans.commit()
 
