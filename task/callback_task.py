@@ -52,7 +52,6 @@ async def cash_exchange(connection, user_id, amount, changed_type, reason, remar
         return True
 
 
-
 # 裂变任务
 async def fission_schema(connection, aimuser_id, task_coin, is_one=True):
     # 查询麒麟裂变方案
@@ -590,7 +589,7 @@ async def today_user_sign(connection, user_id):
 
 
 # 插入提现待审核数据
-async def insert_exchange_cash(connection, user_id, cash, create_time):
+async def insert_exchange_cash(connection, user_id, cash, create_time, game_number):
     select_user_wage = select([MWageRecord]).where(
         and_(
             MWageRecord.create_time == create_time,
@@ -610,23 +609,49 @@ async def insert_exchange_cash(connection, user_id, cash, create_time):
     if not rec_user or not rec_user['user_name'] or not rec_user['ali_num']:
         return False, "请前往提现页面补全支付宝账号"
     current_time = int(time.time() * 1000)
-    # 插入lcoinchange表
-    insert_rec = await connection.execute(insert(LCoinChange).values({
-        "user_id": user_id,
-        "amount": cash * 10000,
-        "flow_type": 2,
-        "changed_type": 3,
-        "changed_time": current_time,
-        "status": 2,
-        "account_type": 2,
-        "reason": "每日工资提现",
-        "remarks": "每日工资提现",
-        "coin_balance": 0,
-    }))
 
-    # 插入exchangecash表
+    # 获取当前任务数
+    c_time = time.mktime(create_time.timetuple()) * 1000
+    coinchange_games = select([LCoinChange]).where(
+        and_(
+            LCoinChange.user_id == user_id,
+            LCoinChange.changed_type == 7,
+            LCoinChange.changed_time > c_time
+        )
+    ).order_by(LCoinChange.changed_time.asc()).limit(game_number)
+    cur_coinchange_games = await connection.execute(coinchange_games)
+    rec_coinchange_games = await cur_coinchange_games.fetchall()
+    amount = sum([c_game['amount'] for c_game in rec_coinchange_games])
+    if amount > (cash * 10000):
+        amount = cash * 10000
+    # 减去余额
+    nsq_topic = "ql_callback_queue"
+    nsq_msg = {
+        "task": "reward_task",
+        "data": {
+            "user_id": user_id,
+            "amount": amount,
+            "changed_type": 3,
+            "reason": "每日工资提现",
+            "remarks": "每日工资提现",
+            "flow_type": 2
+        }
+    }
+    await pub_to_nsq(NSQ_NSQD_HTTP_ADDR, nsq_topic, nsq_msg)
+
+    time.sleep(3)
+    select_user_exchange_id = select([LCoinChange]).where(
+        and_(
+            LCoinChange.user_id == user_id,
+            LCoinChange.flow_type == 2
+        )
+    ).order_by(LCoinChange.changed_time.desc()).limit(1)
+    cur_id = await connection.execute(select_user_exchange_id)
+    rec_id = await cur_id.fetchone()
+
+    #插入exchangecash表
     await connection.execute(insert(LUserExchangeCash).values({
-        "coin_change_id": insert_rec.lastrowid,
+        "coin_change_id": rec_id['id'],
         "user_id": user_id,
         "out_trade_no": str(current_time) + rec_user['qr_code'],
         "bank_account": rec_user['ali_num'],

@@ -462,7 +462,7 @@ async def get_wage_status(request):
     json_result = {
         "code": 200,
         "message": "success",
-        "data":result
+        "data": result
     }
 
     return web.json_response(json_result)
@@ -678,7 +678,7 @@ async def post_wage_cash(request):
         if rec_user_wage['status'] == 2:
             # 任务验证成功发起提现
             cash_result, toast = await insert_exchange_cash(connection, user_id, rec_user_wage['reward'],
-                                                            rec_user_wage['create_time'])
+                                                            rec_user_wage['create_time'], rec_user_wage['current_game'])
             json_result = {
                 "code": 200 if cash_result else 400,
                 "message": toast
