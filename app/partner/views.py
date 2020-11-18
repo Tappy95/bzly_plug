@@ -433,9 +433,9 @@ async def get_reward(request):
     })
 
 
-# 获取每日工资状态
-@routes.get('/user/wage')
-async def get_user_wage(request):
+# 获取关卡状态
+@routes.get('/user/wage/status')
+async def get_wage_status(request):
     token = request.query.get('token')
     connection = request['db_connection']
     user_id = await select_user_id(connection, token)
@@ -448,34 +448,74 @@ async def get_user_wage(request):
             MWageRecord.create_time == today_time
         )
     )
+    cur_wage_status = await connection.execute(select_user_wage)
+    rec_wage_status = await cur_wage_status.fetchone()
+    result = {
+        "level_1": 0,
+        "level_2": 0,
+        "level_3": 0,
+        "level_4": 0
+    }
+    if rec_wage_status:
+        result['level_{}'.format(rec_wage_status['wage_level'])] = rec_wage_status['status']
+
+    json_result = {
+        "code": 200,
+        "message": "success",
+        "data":result
+    }
+
+    return web.json_response(json_result)
+
+
+# 获取每日工资状态
+@routes.get('/user/wage')
+async def get_user_wage(request):
+    token = request.query.get('token')
+    wage_level = request.query.get('wage_level')
+    connection = request['db_connection']
+    user_id = await select_user_id(connection, token)
+    now = datetime.now()
+    today_time = now - timedelta(hours=now.hour, minutes=now.minute, seconds=now.second,
+                                 microseconds=now.microsecond)
+    select_user_wage = select([MWageRecord]).where(
+        and_(
+            MWageRecord.user_id == user_id,
+            MWageRecord.create_time == today_time,
+            MWageRecord.wage_level == wage_level
+        )
+    )
     cur_user_wage = await connection.execute(select_user_wage)
     rec_user_wage = await cur_user_wage.fetchone()
+    select_wage_level = select([MWageLevel]).where(
+        MWageLevel.wage_level == wage_level
+    )
+    cur_wage_level = await connection.execute(select_wage_level)
+    rec_wage_level = await cur_wage_level.fetchone()
     if rec_user_wage:
-        select_wage_level = select([MWageLevel]).where(
-            MWageLevel.wage_level == rec_user_wage['wage_level']
-        )
-        cur_wage_level = await connection.execute(select_wage_level)
-        rec_wage_level = await cur_wage_level.fetchone()
+
         result = {
             "wage_level": rec_user_wage['wage_level'],
             "wage_info": rec_wage_level['wage_info'],
             "status": rec_user_wage['status'],
-            "current_video": rec_user_wage['current_video'],
-            "current_game": rec_user_wage['current_game'],
+            "current_video": rec_user_wage['current_video'] if rec_user_wage['current_video'] <= rec_wage_level[
+                'video_number'] else rec_wage_level['video_number'],
+            "current_game": rec_user_wage['current_game'] if rec_user_wage['current_game'] <= rec_wage_level[
+                'game_number'] else rec_wage_level['game_number'],
             "game_number": rec_wage_level['game_number'],
             "video_number": rec_wage_level['video_number'],
             "reward": rec_wage_level['reward'],
         }
     else:
         result = {
-            "wage_level": 0,
-            "wage_info": "",
+            "wage_level": wage_level,
+            "wage_info": rec_wage_level['wage_info'],
             "status": 0,
             "current_video": 0,
             "current_game": 0,
-            "game_number": 0,
-            "video_number": 0,
-            "reward": 0
+            "game_number": rec_wage_level['game_number'],
+            "video_number": rec_wage_level['video_number'],
+            "reward": rec_wage_level['reward']
         }
     json_result = {
         "code": 200,
