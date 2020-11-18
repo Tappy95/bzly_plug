@@ -272,6 +272,8 @@ async def checkin_user_reward():
                 # 如果成功用户数<真实奖池,开启随机,循环递减
                 else:
                     reward_coin = select_real_pool['actual_bonus'] / len(select_all_reall_success_user)
+                    if reward_coin > 11000:
+                        reward_coin = 11000
 
                 for user in select_all_reall_success_user:
                     # 查询用户余额
