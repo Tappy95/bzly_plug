@@ -82,8 +82,8 @@ def worker_cash_change(connection, cash_info):
                 "flow_type": flow_type,
                 "changed_type": changed_type,
                 "changed_time": int(round(time.time() * 1000)),
-                "status": 1,
-                "account_type": 0,
+                "status": 1 if flow_type == 1 else 2,
+                "account_type": 0 if flow_type == 1 else 2,
                 "reason": reason,
                 "remarks": remarks,
                 "coin_balance": coin_balance
