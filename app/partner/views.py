@@ -691,7 +691,7 @@ async def post_wage_cash(request):
         else:
             json_result = {
                 "code": 400,
-                "message": "每日工资未获取"
+                "message": "您的任务未完成"
             }
     else:
         json_result = {

@@ -376,6 +376,8 @@ def worker_wage_task(conn, task_info):
                 result["status"] = 2,
                 result["reward"] = select_wage_level['reward'],
                 result["update_time"] = datetime.now()
+                result["current_game"] = select_wage_level['game_number']
+                result["current_video"] = select_wage_level['video_number']
 
             # 更新每日工资
             conn.execute(update(MWageRecord).values(result).where(

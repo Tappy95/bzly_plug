@@ -40,6 +40,8 @@ async def cash_reward():
         cash_infos = serialize(c_cash, r_cash)
         # logger.info(cash_infos)
         for cash_info in cash_infos:
+            if cash_info['actual_amount'] != 1 and cash_info['actual_amount'] < 10:
+                continue
             logger.info(cash_info["id"])
             # 利用信息id和log表做关联,查是否存在此log记录
             select_cash_log = conn.execute(select([LUserCashLogPY]).where(
