@@ -82,8 +82,8 @@ def worker_cash_change(connection, cash_info):
                 "flow_type": flow_type,
                 "changed_type": changed_type,
                 "changed_time": int(round(time.time() * 1000)),
-                "status": 1,
-                "account_type": 0,
+                "status": 1 if flow_type == 1 else 2,
+                "account_type": 0 if flow_type == 1 else 2,
                 "reason": reason,
                 "remarks": remarks,
                 "coin_balance": coin_balance
@@ -374,8 +374,8 @@ def worker_wage_task(conn, task_info):
             if current_game >= select_wage_level['game_number'] and \
                     current_video >= select_wage_level['video_number']:
                 result["status"] = 2,
-                result["reward"] = select_wage_level['reward'],
-                result["update_time"] = datetime.now()
+                result["reward"] = select_wage_level['reward']
+                # result["update_time"] = datetime.now()
 
             # 更新每日工资
             conn.execute(update(MWageRecord).values(result).where(

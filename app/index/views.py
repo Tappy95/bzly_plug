@@ -397,6 +397,7 @@ async def get_ibxcallback(request):
     cursor = await connection.execute(is_ordernum)
     record = await cursor.fetchone()
     logger.info(record)
+    content_cz = '充值返利' if int(r_json.get('type')) == 2 else ""
     if record:
         return web.json_response({"code": 200, "message": "订单已接收"})
     try:
@@ -466,7 +467,7 @@ async def get_ibxcallback(request):
             amount=task_coin,
             changed_type=7,
             reason="爱变现游戏任务奖励",
-            remarks=callback_params['game_name'],
+            remarks=callback_params['game_name'] + callback_params['content'] + content_cz,
             flow_type=1
         )
         # if "充值" not in callback_params['game_name']:

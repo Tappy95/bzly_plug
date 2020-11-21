@@ -568,7 +568,7 @@ async def post_user_wage(request):
                         "current_game": 0,
                         "current_video": 0,
                         "status": 1,
-                        "update_time": today_time,
+                        "update_time": now,
                     }
                 )
             )
@@ -629,8 +629,8 @@ async def get_wage_cash(request):
             await connection.execute(
                 update(MWageRecord).values({
                     "status": 2,
-                    "reward": rec_wage_level['reward'],
-                    "update_time": datetime.now()
+                    "reward": rec_wage_level['reward']
+                    # "update_time": datetime.now()
                 }).where(
                     and_(
                         MWageRecord.user_id == user_id,
@@ -678,7 +678,8 @@ async def post_wage_cash(request):
         if rec_user_wage['status'] == 2:
             # 任务验证成功发起提现
             cash_result, toast = await insert_exchange_cash(connection, user_id, rec_user_wage['reward'],
-                                                            rec_user_wage['create_time'], rec_user_wage['current_game'])
+                                                            rec_user_wage['create_time'], rec_user_wage['update_time'],
+                                                            rec_user_wage['current_game'])
             json_result = {
                 "code": 200 if cash_result else 400,
                 "message": toast

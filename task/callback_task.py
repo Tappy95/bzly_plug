@@ -589,7 +589,7 @@ async def today_user_sign(connection, user_id):
 
 
 # 插入提现待审核数据
-async def insert_exchange_cash(connection, user_id, cash, create_time, game_number):
+async def insert_exchange_cash(connection, user_id, cash, create_time, update_time, game_number):
     select_user_wage = select([MWageRecord]).where(
         and_(
             MWageRecord.create_time == create_time,
@@ -611,7 +611,7 @@ async def insert_exchange_cash(connection, user_id, cash, create_time, game_numb
     current_time = int(time.time() * 1000)
 
     # 获取当前任务数
-    c_time = time.mktime(create_time.timetuple()) * 1000
+    c_time = time.mktime(update_time.timetuple()) * 1000
     coinchange_games = select([LCoinChange]).where(
         and_(
             LCoinChange.user_id == user_id,
@@ -649,7 +649,7 @@ async def insert_exchange_cash(connection, user_id, cash, create_time, game_numb
     cur_id = await connection.execute(select_user_exchange_id)
     rec_id = await cur_id.fetchone()
 
-    #插入exchangecash表
+    # 插入exchangecash表
     await connection.execute(insert(LUserExchangeCash).values({
         "coin_change_id": rec_id['id'],
         "user_id": user_id,
