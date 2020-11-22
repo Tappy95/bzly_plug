@@ -607,7 +607,7 @@ async def insert_exchange_cash(connection, user_id, cash, create_time, update_ti
     cur_user = await connection.execute(select_user)
     rec_user = await cur_user.fetchone()
     if not rec_user or not rec_user['user_name'] or not rec_user['ali_num']:
-        return False, "请前往提现页面补全支付宝账号"
+        return False, "请在下方绑定支付宝"
     current_time = int(time.time() * 1000)
 
     # 获取当前任务数
