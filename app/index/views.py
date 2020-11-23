@@ -1376,7 +1376,8 @@ async def get_coinchange(request):
         if params['channel'] != "all":
             if "searchType" not in params:
                 conditions.append(
-                    or_(MUserInfo.channel_code == params['channel'], MUserInfo.parent_channel_code == params['channel']))
+                    or_(MUserInfo.channel_code == params['channel'],
+                        MUserInfo.parent_channel_code == params['channel']))
             else:
                 if params['searchType'] == "1":
                     conditions.append(MUserInfo.channel_code == params['channel'])
@@ -1423,6 +1424,20 @@ async def get_coinchange(request):
     rec_user = await cur_user.fetchall()
     search_user_ids = [user_info['user_id'] for user_info in rec_user]
 
+    # 领导人下级
+    if 'leader_accountId' in params:
+        select_leader_accountId = select([MUserInfo]).where(MUserInfo.account_id==params['leader_accountId'])
+        cur_acc = await connection.execute(select_leader_accountId)
+        rec_acc = await cur_acc.fetchone()
+        select_leader_students = select([MUserLeader.user_id]).where(MUserLeader.referrer == rec_acc['user_id'])
+        cur_one_students = await connection.execute(select_leader_students)
+        rec_one_students = await cur_one_students.fetchall()
+        select_two_students = select([MUserLeader.user_id]).where(
+            MUserLeader.referrer.in_([user['user_id'] for user in rec_one_students]))
+        cur_two_students = await connection.execute(select_two_students)
+        rec_two_students = await cur_two_students.fetchall()
+        search_user_ids = [*[user['user_id'] for user in rec_one_students], *[user['user_id'] for user in rec_two_students]]
+    print(search_user_ids)
     # 流水查询条件
     # 判断是否查询全部渠道收益
     change_conditions = [LCoinChange.user_id.in_(search_user_ids)]
@@ -1550,7 +1565,6 @@ async def get_time(request):
     return web.Response(text=str(timenow))
 
 
-
 # 测试NSQ
 @routes.get('/nsq')
 async def get_nsq(request):
@@ -1563,5 +1577,5 @@ async def get_nsq(request):
     if task_status != 200:
         return web.HTTPServiceUnavailable(text="Task publishing failed")
     return web.json_response({
-        "ok":"success"
+        "ok": "success"
     })
