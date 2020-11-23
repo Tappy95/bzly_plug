@@ -1437,7 +1437,10 @@ async def get_coinchange(request):
         cur_two_students = await connection.execute(select_two_students)
         rec_two_students = await cur_two_students.fetchall()
         search_user_ids = [*[user['user_id'] for user in rec_one_students], *[user['user_id'] for user in rec_two_students]]
-    print(search_user_ids)
+        select_users = select([MUserInfo]).where(MUserInfo.user_id.in_(search_user_ids))
+        # logger.info(select_user_ids)
+        cur_user = await connection.execute(select_users)
+        rec_user = await cur_user.fetchall()
     # 流水查询条件
     # 判断是否查询全部渠道收益
     change_conditions = [LCoinChange.user_id.in_(search_user_ids)]
