@@ -103,7 +103,7 @@ async def ibx_call_back_test():
     app_reward = "0.85"
     user_reward = "10000"
 
-    order_id = "99869465955614"
+    order_id = "9986946590134"
     params = {
         "app_key": app_key,
         "device": device,
@@ -118,7 +118,7 @@ async def ibx_call_back_test():
         "sign": (hashlib.md5(
             (app_key + device + device_info + target_id + notify_url + IBX_SECRET).encode(
                 'utf-8')).hexdigest()).upper(),
-        "content": "累计红包0.9元",
+        "content": "天天抢红包0.9元",
         "order_id": order_id,
         "type": 1
     }

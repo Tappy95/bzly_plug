@@ -416,14 +416,14 @@ async def callback_handle(group, task):
                     or task_info['changed_type'] == 30:
 
                 # 更新每日工资
-                wage_result = worker_wage_task(conn, task_info)
+                if "充值" not in task_info['remarks'] and "天天抢红包" not in task_info['remarks']:
+                    wage_result = worker_wage_task(conn, task_info)
 
-                if not wage_result:
-                    # 裂变分润
-                    if "充值" not in task_info['remarks']:
+                    if not wage_result:
+                        # 裂变分润
                         worker_fission_schema(conn, task_info)
-                    # 更新闯关
-                    worker_checkpoint_task(conn, task_info)
+                        # 更新闯关
+                        worker_checkpoint_task(conn, task_info)
 
             # 更新
             trans.commit()
