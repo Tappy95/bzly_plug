@@ -1,5 +1,5 @@
 from datetime import datetime
-from urllib.parse import quote
+from urllib.parse import quote, urlparse, urlunparse
 
 import aiohttp
 import asyncio
@@ -27,6 +27,88 @@ engine = create_engine(
     max_overflow=SQLALCHEMY_POOL_MAX_OVERFLOW,
     pool_recycle=SQLALCHEMY_POOL_RECYCLE,
 )
+
+
+def get_pcdd_tasks():
+    user_id = "100648"
+    pid = "11474"
+    deviceid = "869311033090813"
+    ptype2 = '2'
+    type2 = '2'
+    appkey = "PCDDXW5_QLQW_11474"
+    key = "BlZd7NIV6$RSHMuCL5Zg"
+    xwdeviceid = "864493043847013,864493045147016,99001329600901"
+    params = {
+        "type": type2,
+        "keycode": (hashlib.md5(
+            (user_id + deviceid + pid + ptype2 + appkey).encode(
+                'utf-8')).hexdigest()).lower(),
+        "pid": pid,
+        "deviceid": deviceid,
+        "userid": user_id,
+        "ptype": ptype2,
+        # "keycode": 'bfad3d22aab9b880c88e0f7bf4d7fa3d',
+        "xwdeviceid": xwdeviceid,
+    }
+    # print(params)
+    r = requests.get('http://ifsapp.pceggs.com/IFS/SDK/SDK_Api_AdList.ashx', params=params)
+    # print(r.url)
+    r_json = r.json()
+    print(r_json)
+    game_list = r_json['data']['items']
+    with engine.connect() as conn:
+        select_delete_pcdd = conn.execute(select([TpGame]).where(
+            TpGame.interface_id == 6
+        )).fetchall()
+        logger.info(len(select_delete_pcdd))
+        logger.info('---------------{}'.format(int(time.time())))
+
+        delete_ids = [game['id'] for game in select_delete_pcdd if int(game['enddate']) <= int(time.time())]
+
+        for game in game_list:
+            # print(game)
+            select_is_game = conn.execute(select([TpGame]).where(
+                TpGame.game_id == game['adid']
+            )).fetchone()
+
+            # 处理url
+            a = list(urlparse(
+                'http://ifsapp.pceggs.com/Pages/IntegralWall/IW_Awall_addetail.aspx?adid=45828&userid=100648&deviceid=869311033090813&ptype=2&pid=11474&newversion=0&keycode=12286313c0629668dc63edfc9165ff32&xwdeviceid=864493043847013,864493045147016,99001329600901'))
+            query_list = a[4].split('&')
+            a[4] = query_list[0]
+            game_url = urlunparse(a)
+
+            result = {
+                "interface_id": 6,
+                "game_id": str(game['adid']),
+                "game_title": game['adname'],
+                "icon": game['imgurl'],
+                "url": game_url,
+                "enddate": str(game['endtime']),
+                "game_gold": float(game['totalmoney']),
+                "introduce": game['intro'],
+                "package_name": game['pagename'],
+                "status": 1,
+                "game_tag": 1,
+                "order_id": 1,
+                "ptype": 2,
+                "label_str": "",
+                "short_intro": "",
+            }
+            if select_is_game:
+                conn.execute(update(TpGame).values(result).where(
+                    and_(
+                        TpGame.game_id == game['advert_id'],
+                        TpGame.interface_id == 6
+                    )
+                ))
+                if game['adid'] in delete_ids:
+                    delete_ids.pop(game['adid'])
+            else:
+                conn.execute(insert(TpGame).values(result))
+        conn.execute(delete(TpGame).where(
+            TpGame.id.in_(delete_ids)
+        ))
 
 
 async def get_ibx_tasks():
@@ -111,7 +193,6 @@ def get_dy_games():
 
         delete_ids = [game['id'] for game in select_delete_dy if int(game['enddate']) <= int(time.time())]
 
-
         for game in game_list:
             # print(game)
             select_is_game = conn.execute(select([TpGame]).where(
@@ -149,6 +230,7 @@ def get_dy_games():
         conn.execute(delete(TpGame).where(
             TpGame.id.in_(delete_ids)
         ))
+
 
 def get_leader_id(low_user_id, conn):
     select_low_user = conn.execute(select([MUserInfo]).where(
@@ -351,4 +433,4 @@ if __name__ == '__main__':
     # loop.run_until_complete(get_ibx_tasks())
 
     # 多游游戏获取
-    get_dy_games()
+    get_pcdd_tasks()
