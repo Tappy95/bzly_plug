@@ -22,7 +22,7 @@ from task.callback_task import fission_schema, cash_exchange, select_user_id, ge
     insert_exchange_cash
 from task.check_sign import check_xw_sign, check_ibx_sign, check_jxw_sign, check_yw_sign, check_dy_sign, check_zb_sign
 from util.log import logger
-from util.static_methods import serialize
+from util.static_methods import serialize, time_serialize
 
 routes = web.RouteTableDef()
 
@@ -76,6 +76,8 @@ async def get_checkpoint(request):
                     "current_coin": 0,
                     "current_invite": 0,
                     "current_points": 0,
+                    "current_videos": 0,
+                    "current_games": 0,
                     "reward_amount": 0,
                     "state": 0
                 }))
@@ -1156,7 +1158,8 @@ async def get_checkpoint_record(request):
     pagesize = int(request.query.get('pageSize'))
     pageoffset = (page - 1) * pagesize
     connection = request['db_connection']
-    select_checkpoint = select([MCheckpointRecord]).limit(pagesize).offset(pageoffset).order_by(MCheckpointRecord.create_time.desc())
+    select_checkpoint = select([MCheckpointRecord]).limit(pagesize).offset(pageoffset).order_by(
+        MCheckpointRecord.create_time.desc())
     cur_check = await connection.execute(select_checkpoint)
     rec_check = await cur_check.fetchall()
     user_ids = [user['user_id'] for user in rec_check]
@@ -1178,6 +1181,137 @@ async def get_checkpoint_record(request):
         "code": 200,
         "message": "success",
         "data": result_list,
-        "total":total
+        "total": total
+    }
+    return web.json_response(json_result)
+
+
+# 查询闯关奖励
+@routes.get('/checkpointincome/list')
+async def get_checkpointincome_record(request):
+    page = int(request.query.get('pageNum'))
+    pagesize = int(request.query.get('pageSize'))
+    pageoffset = (page - 1) * pagesize
+    connection = request['db_connection']
+    select_checkpoint = select([MCheckpointIncome]).limit(pagesize).offset(pageoffset).order_by(
+        MCheckpointIncome.create_time.desc())
+    cur_check = await connection.execute(select_checkpoint)
+    rec_check = await cur_check.fetchall()
+    user_ids = [user['user_id'] for user in rec_check]
+    select_user = select([MUserInfo]).where(MUserInfo.user_id.in_(user_ids))
+    cur_user = await connection.execute(select_user)
+    rec_user = await cur_user.fetchall()
+
+    select_all_checkpoint = select([MCheckpointIncome.id])
+    cur_all = await connection.execute(select_all_checkpoint)
+    rec_all = await cur_all.fetchall()
+    total = len(rec_all)
+
+    result_list = serialize(cur_check, rec_check)
+    for user in rec_user:
+        for info in result_list:
+            if user['user_id'] == info['user_id']:
+                info['account_id'] = user['account_id']
+    json_result = {
+        "code": 200,
+        "message": "success",
+        "data": result_list,
+        "total": total
+    }
+    return web.json_response(json_result)
+
+
+# 查询闯关导入金额记录
+@routes.get('/checkpointincomechange/list')
+async def get_checkpointincomechange_record(request):
+    page = int(request.query.get('pageNum'))
+    pagesize = int(request.query.get('pageSize'))
+    pageoffset = (page - 1) * pagesize
+    connection = request['db_connection']
+    select_checkpoint = select([MCheckpointIncomeChange]).limit(pagesize).offset(pageoffset).order_by(
+        MCheckpointIncomeChange.create_time.desc())
+    cur_check = await connection.execute(select_checkpoint)
+    rec_check = await cur_check.fetchall()
+    user_ids = [user['user_id'] for user in rec_check]
+    select_user = select([MUserInfo]).where(MUserInfo.user_id.in_(user_ids))
+    cur_user = await connection.execute(select_user)
+    rec_user = await cur_user.fetchall()
+
+    select_all_checkpoint = select([MCheckpointIncomeChange.id])
+    cur_all = await connection.execute(select_all_checkpoint)
+    rec_all = await cur_all.fetchall()
+    total = len(rec_all)
+
+    result_list = serialize(cur_check, rec_check)
+    for user in rec_user:
+        for info in result_list:
+            if user['user_id'] == info['user_id']:
+                info['account_id'] = user['account_id']
+    json_result = {
+        "code": 200,
+        "message": "success",
+        "data": result_list,
+        "total": total
+    }
+    return web.json_response(json_result)
+
+
+# 查询工资等级
+@routes.get('/wagelevel/list')
+async def get_wage_level(request):
+    # page = int(request.query.get('pageNum'))
+    # pagesize = int(request.query.get('pageSize'))
+    connection = request['db_connection']
+    select_checkpoint = select([MWageLevel])
+    cur_check = await connection.execute(select_checkpoint)
+    rec_check = await cur_check.fetchall()
+
+    select_all_checkpoint = select([MCheckpointIncomeChange.id])
+    cur_all = await connection.execute(select_all_checkpoint)
+    rec_all = await cur_all.fetchall()
+    total = len(rec_all)
+
+    result_list = time_serialize(cur_check, rec_check)
+
+    json_result = {
+        "code": 200,
+        "message": "success",
+        "data": result_list,
+        "total": total
+    }
+    return web.json_response(json_result)
+
+
+# 查询工资记录
+@routes.get('/wagerecord/list')
+async def get_wage_level(request):
+    page = int(request.query.get('pageNum'))
+    pagesize = int(request.query.get('pageSize'))
+    pageoffset = (page - 1) * pagesize
+    connection = request['db_connection']
+    select_wage_record = select([MWageRecord]).limit(pagesize).offset(pageoffset).order_by(
+        MWageRecord.create_time.desc())
+    cur_wage_record = await connection.execute(select_wage_record)
+    rec_wage_record = await cur_wage_record.fetchall()
+    user_ids = [user['user_id'] for user in rec_wage_record]
+    select_user = select([MUserInfo]).where(MUserInfo.user_id.in_(user_ids))
+    cur_user = await connection.execute(select_user)
+    rec_user = await cur_user.fetchall()
+
+    select_wage_record = select([MWageRecord.status])
+    cur_all = await connection.execute(select_wage_record)
+    rec_all = await cur_all.fetchall()
+    total = len(rec_all)
+
+    result_list = serialize(cur_wage_record, rec_wage_record)
+    for user in rec_user:
+        for info in result_list:
+            if user['user_id'] == info['user_id']:
+                info['account_id'] = user['account_id']
+    json_result = {
+        "code": 200,
+        "message": "success",
+        "data": result_list,
+        "total": total
     }
     return web.json_response(json_result)

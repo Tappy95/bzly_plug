@@ -61,6 +61,31 @@ def serialize(cursor, records):
     return list_info
 
 
+# 数据库序列化器->时间戳
+def time_serialize(cursor, records):
+    row_info, list_info = {}, []
+    for row in records:
+        for key in cursor.keys():
+            if key == 'is_leaf':
+                if row[key] == 0:
+                    row_info[key] = 'False'
+                    continue
+                else:
+                    row_info[key] = 'True'
+                    continue
+                # row_info[key] = isinstance(row[key], bool)
+                # continue
+            if isinstance(row[key], datetime):
+                row_info[key] = time.mktime(row[key].timetuple()) * 1000
+            elif isinstance(row[key], decimal.Decimal):
+                row_info[key] = round(float(row[key]), 2)
+            else:
+                row_info[key] = row[key]
+        list_info.append(row_info)
+        row_info = {}
+    return list_info
+
+
 # 生成七天日期列表
 def date_front(end_time):
     dates = []
