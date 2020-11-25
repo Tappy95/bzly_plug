@@ -1128,3 +1128,56 @@ async def get_leader_detail(request):
         "token": token
     }
     return web.json_response(json_result)
+
+
+# 查询闯关关卡
+@routes.get('/checkpoint/list')
+async def get_checkpoint_list(request):
+    page = int(request.query.get('pageNum'))
+    pagesize = int(request.query.get('pageSize'))
+    pageoffset = (page - 1) * pagesize
+    connection = request['db_connection']
+    select_checkpoint = select([MCheckpoint]).limit(pagesize).offset(pageoffset)
+    cur_check = await connection.execute(select_checkpoint)
+    rec_check = await cur_check.fetchall()
+    result_list = serialize(cur_check, rec_check)
+    json_result = {
+        "code": 200,
+        "message": "success",
+        "data": result_list
+    }
+    return web.json_response(json_result)
+
+
+# 查询闯关记录
+@routes.get('/checkpointrecord/list')
+async def get_checkpoint_record(request):
+    page = int(request.query.get('pageNum'))
+    pagesize = int(request.query.get('pageSize'))
+    pageoffset = (page - 1) * pagesize
+    connection = request['db_connection']
+    select_checkpoint = select([MCheckpointRecord]).limit(pagesize).offset(pageoffset).order_by(MCheckpointRecord.create_time.desc())
+    cur_check = await connection.execute(select_checkpoint)
+    rec_check = await cur_check.fetchall()
+    user_ids = [user['user_id'] for user in rec_check]
+    select_user = select([MUserInfo]).where(MUserInfo.user_id.in_(user_ids))
+    cur_user = await connection.execute(select_user)
+    rec_user = await cur_user.fetchall()
+
+    select_all_checkpoint = select([MCheckpointRecord.state])
+    cur_all = await connection.execute(select_all_checkpoint)
+    rec_all = await cur_all.fetchall()
+    total = len(rec_all)
+
+    result_list = serialize(cur_check, rec_check)
+    for user in rec_user:
+        for info in result_list:
+            if user['user_id'] == info['user_id']:
+                info['account_id'] = user['account_id']
+    json_result = {
+        "code": 200,
+        "message": "success",
+        "data": result_list,
+        "total":total
+    }
+    return web.json_response(json_result)
