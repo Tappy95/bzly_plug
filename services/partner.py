@@ -1,7 +1,7 @@
 import time
 from datetime import datetime, timedelta
 
-from sqlalchemy import select, and_, update
+from sqlalchemy import select, and_, update, or_
 
 from models.alchemy_models import *
 
@@ -161,3 +161,13 @@ async def check_current_coin(connection, user_id, before_current_coin, create_ti
         ))
 
     return current_coin
+
+
+
+async def get_account_id(connection, account_id):
+    select_user = select([MUserInfo]).where(
+        MUserInfo.account_id == account_id
+    )
+    cur = await connection.execute(select_user)
+    rec = await cur.fetchone()
+    return rec['user_id']

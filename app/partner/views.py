@@ -17,7 +17,7 @@ from models.alchemy_models import MUserInfo, t_tp_pcdd_callback, PDictionary, t_
     t_tp_ibx_callback, TpJxwCallback, TpYwCallback, TpDyCallback, TpZbCallback, LCoinChange, MChannelInfo, MChannel, \
     MCheckpointRecord, MCheckpoint, MCheckpointIncome, MCheckpointIncomeChange, MUserLeader, LLeaderChange, \
     LPartnerChange, MPartnerInfo, MWageRecord, MWageLevel
-from services.partner import leader_detail, check_current_invite, check_current_coin
+from services.partner import leader_detail, check_current_invite, check_current_coin, get_account_id
 from task.callback_task import fission_schema, cash_exchange, select_user_id, get_channel_user_ids, get_callback_infos, \
     insert_exchange_cash
 from task.check_sign import check_xw_sign, check_ibx_sign, check_jxw_sign, check_yw_sign, check_dy_sign, check_zb_sign
@@ -1288,8 +1288,27 @@ async def get_wage_level(request):
     page = int(request.query.get('pageNum'))
     pagesize = int(request.query.get('pageSize'))
     pageoffset = (page - 1) * pagesize
+    params = {**request.query}
     connection = request['db_connection']
-    select_wage_record = select([MWageRecord]).limit(pagesize).offset(pageoffset).order_by(
+    conditions = []
+
+    if 'user_id' in params and params['user_id']:
+        user_id = await get_account_id(connection, params['user_id'])
+        conditions.append(MWageRecord.user_id == user_id)
+    if 'wage_level' in params and params['wage_level']:
+        conditions.append(MWageRecord.wage_level == params['wage_level'])
+    if 'status' in params and params['status']:
+        conditions.append(MWageRecord.status == params['status'])
+    if 'start_create_time' in params and params['start_create_time']:
+        start_create_time = datetime.fromtimestamp(int(params['start_create_time']) / 1000)
+        conditions.append(MWageRecord.update_time >= start_create_time)
+    if 'end_create_time' in params and params['end_create_time']:
+        end_create_time = datetime.fromtimestamp(int(params['end_create_time'])/1000)
+        conditions.append(MWageRecord.update_time < end_create_time)
+
+    select_wage_record = select([MWageRecord]).where(
+        and_(*conditions)
+    ).limit(pagesize).offset(pageoffset).order_by(
         MWageRecord.create_time.desc())
     cur_wage_record = await connection.execute(select_wage_record)
     rec_wage_record = await cur_wage_record.fetchall()
@@ -1303,7 +1322,7 @@ async def get_wage_level(request):
     rec_all = await cur_all.fetchall()
     total = len(rec_all)
 
-    result_list = serialize(cur_wage_record, rec_wage_record)
+    result_list = time_serialize(cur_wage_record, rec_wage_record)
     for user in rec_user:
         for info in result_list:
             if user['user_id'] == info['user_id']:

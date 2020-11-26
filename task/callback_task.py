@@ -618,10 +618,16 @@ async def insert_exchange_cash(connection, user_id, cash, create_time, update_ti
             LCoinChange.changed_type == 7,
             LCoinChange.changed_time > c_time
         )
-    ).order_by(LCoinChange.changed_time.asc()).limit(game_number)
+    ).order_by(LCoinChange.changed_time.asc())
     cur_coinchange_games = await connection.execute(coinchange_games)
     rec_coinchange_games = await cur_coinchange_games.fetchall()
-    amount = sum([c_game['amount'] for c_game in rec_coinchange_games])
+    real_tasks = []
+    for task in rec_coinchange_games:
+        if len(real_tasks) == game_number:
+            break
+        if '天天抢红包' not in task['remarks'] and '充值' not in task['remarks']:
+            real_tasks.append(task['amount'])
+    amount = sum(real_tasks)
     if amount > (cash * 10000):
         amount = cash * 10000
     # 减去余额
