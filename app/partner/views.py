@@ -1156,9 +1156,34 @@ async def get_checkpoint_list(request):
 async def get_checkpoint_record(request):
     page = int(request.query.get('pageNum'))
     pagesize = int(request.query.get('pageSize'))
+    params = {**request.query}
     pageoffset = (page - 1) * pagesize
     connection = request['db_connection']
-    select_checkpoint = select([MCheckpointRecord]).limit(pagesize).offset(pageoffset).order_by(
+    conditions = []
+
+    if 'user_id' in params and params['user_id']:
+        user_id = await get_account_id(connection, params['user_id'])
+        conditions.append(MCheckpointRecord.user_id == user_id)
+    if 'status' in params and params['status']:
+        conditions.append(MCheckpointRecord.state == params['status'])
+    if 'checkpoint_number' in params and params['checkpoint_number']:
+        conditions.append(MCheckpointRecord.checkpoint_number == params['checkpoint_number'])
+    if 'start_create_time' in params and params['start_create_time']:
+        # start_create_time = datetime.fromtimestamp(int(params['start_create_time']) / 1000)
+        conditions.append(MCheckpointRecord.create_time >= params['start_create_time'])
+    if 'end_create_time' in params and params['end_create_time']:
+        # end_create_time = datetime.fromtimestamp(int(params['end_create_time']) / 1000)
+        conditions.append(MCheckpointRecord.create_time < params['end_create_time'])
+    if 'start_end_time' in params and params['start_end_time']:
+        # start_create_time = datetime.fromtimestamp(int(params['start_create_time']) / 1000)
+        conditions.append(MCheckpointRecord.end_time >= params['start_end_time'])
+    if 'end_end_time' in params and params['end_end_time']:
+        # end_create_time = datetime.fromtimestamp(int(params['end_create_time']) / 1000)
+        conditions.append(MCheckpointRecord.end_time < params['end_end_time'])
+
+    select_checkpoint = select([MCheckpointRecord]).where(
+        and_(*conditions)
+    ).limit(pagesize).offset(pageoffset).order_by(
         MCheckpointRecord.create_time.desc())
     cur_check = await connection.execute(select_checkpoint)
     rec_check = await cur_check.fetchall()
@@ -1167,7 +1192,7 @@ async def get_checkpoint_record(request):
     cur_user = await connection.execute(select_user)
     rec_user = await cur_user.fetchall()
 
-    select_all_checkpoint = select([MCheckpointRecord.state])
+    select_all_checkpoint = select([MCheckpointRecord.state]).where(and_(*conditions))
     cur_all = await connection.execute(select_all_checkpoint)
     rec_all = await cur_all.fetchall()
     total = len(rec_all)
@@ -1303,7 +1328,7 @@ async def get_wage_level(request):
         start_create_time = datetime.fromtimestamp(int(params['start_create_time']) / 1000)
         conditions.append(MWageRecord.update_time >= start_create_time)
     if 'end_create_time' in params and params['end_create_time']:
-        end_create_time = datetime.fromtimestamp(int(params['end_create_time'])/1000)
+        end_create_time = datetime.fromtimestamp(int(params['end_create_time']) / 1000)
         conditions.append(MWageRecord.update_time < end_create_time)
 
     select_wage_record = select([MWageRecord]).where(
@@ -1317,7 +1342,7 @@ async def get_wage_level(request):
     cur_user = await connection.execute(select_user)
     rec_user = await cur_user.fetchall()
 
-    select_wage_record = select([MWageRecord.status])
+    select_wage_record = select([MWageRecord.status]).where(and_(*conditions))
     cur_all = await connection.execute(select_wage_record)
     rec_all = await cur_all.fetchall()
     total = len(rec_all)
