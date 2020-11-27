@@ -12,7 +12,7 @@ async def pcdd_call_back_test():
     key = "PCDDXW5_QLQW_11474"
     adid = 43520
     pid = "11474"
-    ordernum = "99869465959891053"
+    ordernum = "99869465959891223"
     deviceid = "863270643441130"
     params = {
         "adid": adid,
@@ -22,7 +22,7 @@ async def pcdd_call_back_test():
         "dlevel": 1,
         "pagename": "245603539208156800",
         "deviceid": deviceid,
-        "userid": "2cfdd8e67aaf45deb3cb242a1621f2de",
+        "userid": "1c5f886a6414dc10a0ff8702fc9b0fba",
         "merid": "13167325185",
         "event": "暴击联盟累计获得5000金币（仅限新用户）",
         "price": "0.85",
@@ -204,4 +204,4 @@ async def zb_call_back_test():
 
 if __name__ == '__main__':
     loop = asyncio.get_event_loop()
-    loop.run_until_complete(ibx_call_back_test())
+    loop.run_until_complete(pcdd_call_back_test())

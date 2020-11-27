@@ -239,7 +239,7 @@ async def get_pcddcallback(request):
         )
         cur_ctm = await connection.execute(select_coin_to_money)
         rec_ctm = await cur_ctm.fetchone()
-        task_coin = pcdd_callback_params['money'] * int(rec_ctm['dic_value'])
+        task_coin = float(pcdd_callback_params['money']) * int(rec_ctm['dic_value'])
 
         cash_result = await cash_exchange(
             connection,
@@ -247,7 +247,7 @@ async def get_pcddcallback(request):
             amount=task_coin,
             changed_type=7,
             reason="享玩游戏任务奖励",
-            remarks=pcdd_callback_params['adname'],
+            remarks=request.query.get('event'),
             flow_type=1
         )
         # if "充值" not in pcdd_callback_params['adname']:
