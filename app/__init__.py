@@ -35,10 +35,10 @@ app = web.Application(middlewares=[db_middleware, redis_middleware])
 
 async def init_db(app):
     app['db_engine'] = await create_engine(
-        # pool_pre_ping=SQLALCHEMY_POOL_PRE_PING,
+        pool_pre_ping=SQLALCHEMY_POOL_PRE_PING,
         echo=SQLALCHEMY_ECHO,
-        # pool_size=SQLALCHEMY_POOL_SIZE,
-        # max_overflow=SQLALCHEMY_POOL_MAX_OVERFLOW,
+        pool_size=SQLALCHEMY_POOL_SIZE,
+        max_overflow=SQLALCHEMY_POOL_MAX_OVERFLOW,
         pool_recycle=SQLALCHEMY_POOL_RECYCLE,
         autocommit=True,
         user=DB_USER_NAME, db=DB_DATABASE_NAME,

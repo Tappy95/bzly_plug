@@ -433,4 +433,4 @@ if __name__ == '__main__':
     # loop.run_until_complete(get_ibx_tasks())
 
     # 多游游戏获取
-    get_pcdd_tasks()
+    get_dy_games()
