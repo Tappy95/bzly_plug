@@ -389,7 +389,7 @@ def worker_wage_task(conn, task_info):
             logger.info("{}:game->{},video->{}".format(task_info['user_id'], current_game, current_video))
 
         else:
-            return True
+            return False
         trans.commit()
         return True
     except Exception as e:
