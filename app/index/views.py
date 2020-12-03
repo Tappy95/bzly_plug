@@ -1418,11 +1418,12 @@ async def get_coinchange(request):
     if "accountId" in params:
         conditions.append(MUserInfo.account_id == params['accountId'])
     # 根据查询维度获取用户ids
-    select_user_ids = select([MUserInfo]).where(and_(*conditions))
+    select_user_ids = select([MUserInfo.user_id]).where(and_(*conditions))
+    select_user_ids_2 = select([MUserInfo]).where(and_(*conditions))
     # logger.info(select_user_ids)
-    cur_user = await connection.execute(select_user_ids)
+    cur_user = await connection.execute(select_user_ids_2)
     rec_user = await cur_user.fetchall()
-    search_user_ids = [user_info['user_id'] for user_info in rec_user]
+    # search_user_ids = [user_info['user_id'] for user_info in rec_user]
 
     # 领导人下级
     if 'leader_accountId' in params:
@@ -1437,13 +1438,14 @@ async def get_coinchange(request):
         cur_two_students = await connection.execute(select_two_students)
         rec_two_students = await cur_two_students.fetchall()
         search_user_ids = [*[user['user_id'] for user in rec_one_students], *[user['user_id'] for user in rec_two_students]]
-        select_users = select([MUserInfo]).where(MUserInfo.user_id.in_(search_user_ids))
+        select_user_ids = select([MUserInfo.user_id]).where(MUserInfo.user_id.in_(search_user_ids))
+        select_user_ids_2 = select([MUserInfo.user_id]).where(MUserInfo.user_id.in_(search_user_ids))
         # logger.info(select_user_ids)
-        cur_user = await connection.execute(select_users)
+        cur_user = await connection.execute(select_user_ids_2)
         rec_user = await cur_user.fetchall()
     # 流水查询条件
     # 判断是否查询全部渠道收益
-    change_conditions = [LCoinChange.user_id.in_(search_user_ids)]
+    change_conditions = [LCoinChange.user_id.in_(select_user_ids)]
 
     if "changedType" in params:
         change_conditions.append(LCoinChange.changed_type == int(params['changedType']))
@@ -1519,7 +1521,7 @@ async def get_coinchange(request):
     # 补全信息->上级ID,最高领导人id
     partner_leader_ids = []
     select_all_leader = select([MUserLeader]).where(
-        MUserLeader.user_id.in_(search_user_ids)
+        MUserLeader.user_id.in_(select_user_ids)
     )
     cur_all_leader = await connection.execute(select_all_leader)
     rec_all_leader = await cur_all_leader.fetchall()

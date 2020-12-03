@@ -625,7 +625,7 @@ async def insert_exchange_cash(connection, user_id, cash, create_time, update_ti
     for task in rec_coinchange_games:
         if len(real_tasks) == game_number:
             break
-        if '天天抢红包' not in task['remarks'] and '充值' not in task['remarks']:
+        if '天天抢红包' not in task['remarks'] and '充值' not in task['remarks'] and 'sdk试玩' not in task['remarks']:
             real_tasks.append(task['amount'])
     amount = sum(real_tasks)
     if amount > (cash * 10000):

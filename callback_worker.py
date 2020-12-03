@@ -416,7 +416,8 @@ async def callback_handle(group, task):
                     or task_info['changed_type'] == 30:
 
                 # 更新每日工资
-                if "充值" not in task_info['remarks'] and "天天抢红包" not in task_info['remarks']:
+                if "充值" not in task_info['remarks'] and "天天抢红包" not in task_info['remarks'] and 'sdk试玩' not in \
+                        task_info['remarks']:
                     wage_result = worker_wage_task(conn, task_info)
 
                     if not wage_result:

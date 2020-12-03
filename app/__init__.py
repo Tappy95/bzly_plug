@@ -43,7 +43,7 @@ async def init_db(app):
         autocommit=True,
         user=DB_USER_NAME, db=DB_DATABASE_NAME,
         host=DB_SEVER_ADDR, port=DB_SEVER_PORT, password=DB_USER_PW,
-        maxsize=10
+        maxsize=300
     )
     logger.info("连接DB成功")
 

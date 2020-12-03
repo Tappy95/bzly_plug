@@ -15,9 +15,19 @@ engine = create_engine(
 )
 
 with engine.connect() as conn:
-    select_c = conn.execute(select([MPartnerInfo])).fetchone()
-    print(select_c['enddate'])
-    print(type(select_c['enddate']))
-    conn.execute(update(MPartnerInfo).values({
-        "enddate": datetime.now()
-    }))
+    # select_c = conn.execute(select([MPartnerInfo])).fetchone()
+    # print(select_c['enddate'])
+    # print(type(select_c['enddate']))
+    # conn.execute(update(MPartnerInfo).values({
+    #     "enddate": datetime.now()
+    # }))
+    select_user_ids = conn.execute(select([
+        MUserInfo.user_id,
+        MUserInfo.account_id,
+        MUserInfo.channel_code,
+        MUserInfo.parent_channel_code,
+    ]).where(
+        MUserInfo.referrer == None
+    )).fetchall()
+    for i in select_user_ids:
+        print(i)

@@ -168,10 +168,52 @@ def update_wage_task():
     print("Done update wage tasks")
 
 
+def update_user_none_referrer():
+    with engine.connect() as conn:
+        select_leader = select([MPartnerInfo.user_id]).where(
+            MPartnerInfo.status == 1
+        )
+        select_none_user = conn.execute(select([MUserInfo.user_id]).where(
+            and_(
+                MUserInfo.referrer == None,
+                MUserInfo.user_id.notin_(select_leader)
+            )
+        )).fetchall()
+        conn.execute(update(MUserInfo).values(
+            {
+                "referrer": "d64bb408629c4f7e9f5c92b503672dcb",
+                "recommended_time": int(time.time() * 1000)
+            }
+        ).where(
+            MUserInfo.user_id.in_([user['user_id'] for user in select_none_user])
+        ))
+        results = []
+        for u in select_none_user:
+            result = {
+                "user_id": u['user_id'],
+                "referrer": "d64bb408629c4f7e9f5c92b503672dcb",
+                "leader_id": "d64bb408629c4f7e9f5c92b503672dcb",
+                "update_time": datetime.now()
+            }
+            print(result)
+            results.append(result)
+        insert_stmt = insert(MUserLeader)
+        on_duplicate_key_stmt = insert_stmt.on_duplicate_key_update(
+            user_id=insert_stmt.inserted.user_id,
+            referrer=insert_stmt.inserted.referrer,
+            leader_id=insert_stmt.inserted.leader_id,
+            update_time=insert_stmt.inserted.update_time
+
+        )
+        conn.execute(on_duplicate_key_stmt, results)
+    print('done work')
+
+
 if __name__ == '__main__':
     scheduler = BlockingScheduler()
 
-    scheduler.add_job(update_partner_reward, "interval", minutes=4, next_run_time=datetime.now())
+    scheduler.add_job(update_partner_reward, "interval", minutes=4)
+    scheduler.add_job(update_user_none_referrer, "interval", minutes=4, next_run_time=datetime.now())
     # scheduler.add_job(update_wage_task, "interval", minutes=1, next_run_time=datetime.now())
 
     # scheduler.add_job(update_enddate_invite, "interval", seconds=2)
