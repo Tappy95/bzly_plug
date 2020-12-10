@@ -1,6 +1,6 @@
 # coding: utf-8
 import json
-
+from sqlalchemy_serializer import SerializerMixin
 from sqlalchemy import Column, DECIMAL, Date, DateTime, Float, Index, String, Table, Text, text, BigInteger, Integer
 from sqlalchemy.dialects.mysql import BIGINT, INTEGER, TINYINT, VARCHAR
 from sqlalchemy.ext.declarative import declarative_base
@@ -241,7 +241,7 @@ class LCashGameTask(Base):
     cash_id = Column(INTEGER(10), index=True, comment='需要完成任务提现记录id')
 
 
-class LCoinChange(Base):
+class LCoinChange(Base, SerializerMixin):
     __tablename__ = 'l_coin_change'
 
     id = Column(INTEGER(10), primary_key=True, comment='金币收入支出')
@@ -1108,7 +1108,7 @@ class MUserGyro(Base):
     number = Column(INTEGER(1), comment='存储次数')
 
 
-class MUserInfo(Base):
+class MUserInfo(Base, SerializerMixin):
     __tablename__ = 'm_user_info'
     __table_args__ = {'comment': 'User Information'}
 

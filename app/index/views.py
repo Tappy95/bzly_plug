@@ -1350,6 +1350,9 @@ async def restart_callback(request):
 # 财务流水渠道明细
 @routes.get('/coinchange')
 async def get_coinchange(request):
+    start_time = time.time()
+    cast_time = time.time() - start_time
+    print(cast_time)
     params = {**request.query}
     token = params['token']
     pa = copy.deepcopy(params)
@@ -1418,11 +1421,15 @@ async def get_coinchange(request):
     if "accountId" in params:
         conditions.append(MUserInfo.account_id == params['accountId'])
     # 根据查询维度获取用户ids
+    cast_time = time.time() - start_time
+    logger.info("构建前消耗{}".format(cast_time))
     select_user_ids = select([MUserInfo.user_id]).where(and_(*conditions))
     select_user_ids_2 = select([MUserInfo]).where(and_(*conditions))
     # logger.info(select_user_ids)
     cur_user = await connection.execute(select_user_ids_2)
     rec_user = await cur_user.fetchall()
+    cast_time = time.time() - start_time
+    logger.info("查询用户消耗{}".format(cast_time))
     # search_user_ids = [user_info['user_id'] for user_info in rec_user]
 
     # 领导人下级
@@ -1447,6 +1454,9 @@ async def get_coinchange(request):
     # 判断是否查询全部渠道收益
     change_conditions = [LCoinChange.user_id.in_(select_user_ids)]
 
+    cast_time = time.time() - start_time
+    logger.info("查询全部用户消耗{}".format(cast_time))
+
     if "changedType" in params:
         change_conditions.append(LCoinChange.changed_type == int(params['changedType']))
     if "startTime" in params:
@@ -1464,15 +1474,31 @@ async def get_coinchange(request):
     page_size = int(params['pageSize'])
     pageoffset = (int(params['pageNum']) - 1) * page_size
 
-    select_coin_change = select([LCoinChange]).where(and_(*change_conditions)).order_by(
+    select_coin_change = select([
+        LCoinChange,
+        MUserInfo.account_id,
+        MUserInfo.equipment_type,
+        MUserInfo.user_name,
+        MUserInfo.mobile,
+        MUserInfo.referrer,
+        MUserInfo.role_type,
+        MUserInfo.level,
+        MUserInfo.create_time
+    ]).where(and_(*change_conditions, LCoinChange.user_id == MUserInfo.user_id)).order_by(
         LCoinChange.changed_time.desc()).limit(page_size).offset(pageoffset)
+
     # logger.info(select_coin_change)
     select_all_change = select([LCoinChange]).where(and_(*change_conditions))
     cur_coin = await connection.execute(select_coin_change)
     rec_coin = await cur_coin.fetchall()
+    # logger.info(rec_coin[0]['mobile'])
+    cast_time = time.time() - start_time
+    logger.info("查询流水消耗{}(分页)".format(cast_time))
     # logger.info(serialize(cur_coin, rec_coin))
     cur_total = await connection.execute(select_all_change)
     rec_total = await cur_total.fetchall()
+    cast_time = time.time() - start_time
+    logger.info("查询流水消耗{}(不分页)".format(cast_time))
     total = len(rec_total)
     pageCount = (total + page_size - 1) / page_size
 
@@ -1490,33 +1516,31 @@ async def get_coinchange(request):
             totalExpendPrice += row['amount']
 
     # 分页结果
-    for user in rec_user:
-        for change in rec_coin:
-            if user['user_id'] == change['user_id']:
-                result = {
-                    "user_id": user['user_id'],
-                    "accountId": user['account_id'],
-                    "equipmentType": user['equipment_type'],
-                    "userName": user['user_name'],
-                    "phoneNum": user['mobile'],
-                    "referrerId": user['referrer'],
-                    "leaderId": "",
-                    "roleType": user['role_type'],
-                    "level": user['level'],
-                    "changedType": change['changed_type'],
-                    "revenue": change['amount'] if change['flow_type'] == 1 else 0,
-                    "expend": change['amount'] if change['flow_type'] == 2 else 0,
-                    "coinBalance": change['coin_balance'],
-                    "changedTime": change['changed_time'],
-                    "registerTime": user['create_time'],
-                    "flowType": change['flow_type'],
-                    "status": change['status'],
-                    "reason": change['reason'] if change['reason'] else "",
-                    "remarks": change['remarks'] if change['remarks'] else "",
-                }
-                list_info.append(result)
-                subExpendPrice += result['expend']
-                subRevenuePrice += result['revenue']
+    for change_and_user in rec_coin:
+        result = {
+            "user_id": change_and_user['user_id'],
+            "accountId": change_and_user['account_id'],
+            "equipmentType": change_and_user['equipment_type'],
+            "userName": change_and_user['user_name'],
+            "phoneNum": change_and_user['mobile'],
+            "referrerId": change_and_user['referrer'],
+            "leaderId": "",
+            "roleType": change_and_user['role_type'],
+            "level": change_and_user['level'],
+            "changedType": change_and_user['changed_type'],
+            "revenue": change_and_user['amount'] if change_and_user['flow_type'] == 1 else 0,
+            "expend": change_and_user['amount'] if change_and_user['flow_type'] == 2 else 0,
+            "coinBalance": change_and_user['coin_balance'],
+            "changedTime": change_and_user['changed_time'],
+            "registerTime": change_and_user['create_time'],
+            "flowType": change_and_user['flow_type'],
+            "status": change_and_user['status'],
+            "reason": change_and_user['reason'] if change_and_user['reason'] else "",
+            "remarks": change_and_user['remarks'] if change_and_user['remarks'] else "",
+        }
+        list_info.append(result)
+        subExpendPrice += result['expend']
+        subRevenuePrice += result['revenue']
 
     # 补全信息->上级ID,最高领导人id
     partner_leader_ids = []
@@ -1544,6 +1568,8 @@ async def get_coinchange(request):
                     r_row['leaderId'] = account['account_id']
 
     newlist = sorted(list_info, key=itemgetter('changedTime'))
+    cast_time = time.time() - start_time
+    logger.info("补全信息及排序{}".format(cast_time))
     # logger.info(list_info)
     json_result = {
         "data": {
@@ -1584,3 +1610,15 @@ async def get_nsq(request):
     return web.json_response({
         "ok": "success"
     })
+
+
+@routes.get('/test_sql')
+async def test_sql(request):
+    connection = request['db_connection']
+    select_user = select([MUserInfo])
+    print(select_user)
+    print(dir(select_user))
+    cur = await connection.execute(select_user)
+    print(dir(select_user))
+    r = await cur.fetchall()
+    print(r)
