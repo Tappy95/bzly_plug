@@ -126,6 +126,7 @@ async def get_platform_list(request):
     print(serialize(cur_channel, rec_channel))
     channel_list = [{"name": channel['channel_name'], "id": channel['channel_code']} for channel in rec_channel]
     channel_list.append({"name": "全渠道", "id": "all"})
+    channel_list.append({"name": "新渠道", "id": "sall"})
     json_result = {
         "platform": [
             {"name": "多游", "id": "duoyou"},
@@ -1378,9 +1379,27 @@ async def get_coinchange(request):
 
         if params['channel'] != "all":
             if "searchType" not in params:
-                conditions.append(
-                    or_(MUserInfo.channel_code == params['channel'],
-                        MUserInfo.parent_channel_code == params['channel']))
+                if params['channel'] == 'sall':
+                    conditions.append(
+                        or_(
+                            MUserInfo.channel_code == 'scjn',
+                            MUserInfo.channel_code == 'slxq',
+                            MUserInfo.channel_code == 'shq',
+                            MUserInfo.channel_code == 'scq',
+                            MUserInfo.channel_code == 'sxmn',
+                            MUserInfo.channel_code == 'ssld',
+                            MUserInfo.parent_channel_code == 'scjn',
+                            MUserInfo.parent_channel_code == 'slxq',
+                            MUserInfo.parent_channel_code == 'shq',
+                            MUserInfo.parent_channel_code == 'scq',
+                            MUserInfo.parent_channel_code == 'sxmn',
+                            MUserInfo.parent_channel_code == 'ssld'
+                        )
+                    )
+                else:
+                    conditions.append(
+                        or_(MUserInfo.channel_code == params['channel'],
+                            MUserInfo.parent_channel_code == params['channel']))
             else:
                 if params['searchType'] == "1":
                     conditions.append(MUserInfo.channel_code == params['channel'])
@@ -1434,7 +1453,7 @@ async def get_coinchange(request):
 
     # 领导人下级
     if 'leader_accountId' in params:
-        select_leader_accountId = select([MUserInfo]).where(MUserInfo.account_id==params['leader_accountId'])
+        select_leader_accountId = select([MUserInfo]).where(MUserInfo.account_id == params['leader_accountId'])
         cur_acc = await connection.execute(select_leader_accountId)
         rec_acc = await cur_acc.fetchone()
         select_leader_students = select([MUserLeader.user_id]).where(MUserLeader.referrer == rec_acc['user_id'])
@@ -1444,7 +1463,8 @@ async def get_coinchange(request):
             MUserLeader.referrer.in_([user['user_id'] for user in rec_one_students]))
         cur_two_students = await connection.execute(select_two_students)
         rec_two_students = await cur_two_students.fetchall()
-        search_user_ids = [*[user['user_id'] for user in rec_one_students], *[user['user_id'] for user in rec_two_students]]
+        search_user_ids = [*[user['user_id'] for user in rec_one_students],
+                           *[user['user_id'] for user in rec_two_students]]
         select_user_ids = select([MUserInfo.user_id]).where(MUserInfo.user_id.in_(search_user_ids))
         select_user_ids_2 = select([MUserInfo.user_id]).where(MUserInfo.user_id.in_(search_user_ids))
         # logger.info(select_user_ids)
@@ -1483,8 +1503,13 @@ async def get_coinchange(request):
         MUserInfo.referrer,
         MUserInfo.role_type,
         MUserInfo.level,
-        MUserInfo.create_time
-    ]).where(and_(*change_conditions, LCoinChange.user_id == MUserInfo.user_id)).order_by(
+        MUserInfo.create_time,
+        MUserLeader.leader_id
+    ]).where(and_(
+        *change_conditions,
+        LCoinChange.user_id == MUserInfo.user_id,
+        MUserLeader.user_id == MUserInfo.user_id
+    )).order_by(
         LCoinChange.changed_time.desc()).limit(page_size).offset(pageoffset)
 
     # logger.info(select_coin_change)
@@ -1523,8 +1548,8 @@ async def get_coinchange(request):
             "equipmentType": change_and_user['equipment_type'],
             "userName": change_and_user['user_name'],
             "phoneNum": change_and_user['mobile'],
-            "referrerId": change_and_user['referrer'],
-            "leaderId": "",
+            "referrerId": change_and_user['referrer'] if change_and_user['referrer'] else "",
+            "leaderId": change_and_user['leader_id'] if change_and_user['leader_id'] else "",
             "roleType": change_and_user['role_type'],
             "level": change_and_user['level'],
             "changedType": change_and_user['changed_type'],
@@ -1536,12 +1561,13 @@ async def get_coinchange(request):
             "flowType": change_and_user['flow_type'],
             "status": change_and_user['status'],
             "reason": change_and_user['reason'] if change_and_user['reason'] else "",
-            "remarks": change_and_user['remarks'] if change_and_user['remarks'] else "",
+            "remarks": change_and_user['remarks'] if change_and_user['remarks'] else ""
         }
         list_info.append(result)
         subExpendPrice += result['expend']
         subRevenuePrice += result['revenue']
-
+    cast_time = time.time() - start_time
+    logger.info("流水第一次处理消耗{}()".format(cast_time))
     # 补全信息->上级ID,最高领导人id
     partner_leader_ids = []
     select_all_leader = select([MUserLeader]).where(
@@ -1552,21 +1578,23 @@ async def get_coinchange(request):
     for row in rec_all_leader:
         partner_leader_ids.append(row['referrer'])
         partner_leader_ids.append(row['leader_id'])
+    cast_time = time.time() - start_time
+    logger.info("查询上级及领导人消耗{}()".format(cast_time))
     select_account_id = select([MUserInfo]).where(
         MUserInfo.user_id.in_(partner_leader_ids)
     )
     cur_account = await connection.execute(select_account_id)
     rec_account = await cur_account.fetchall()
+    cast_time = time.time() - start_time
+    logger.info("补全上级及领导人消耗{}()".format(cast_time))
     for r_row in list_info:
-        for leader in rec_all_leader:
-            if r_row['user_id'] == leader['user_id']:
-                r_row['leaderId'] = leader['leader_id']
-            for account in rec_account:
-                if r_row['referrerId'] == account['user_id']:
-                    r_row['referrerId'] = account['account_id']
-                if r_row['leaderId'] == account['user_id']:
-                    r_row['leaderId'] = account['account_id']
-
+        for account in rec_account:
+            if r_row['referrerId'] == account['user_id']:
+                r_row['referrerId'] = account['account_id']
+            if r_row['leaderId'] == account['user_id']:
+                r_row['leaderId'] = account['account_id']
+    cast_time = time.time() - start_time
+    logger.info("循环补全消耗{}".format(cast_time))
     newlist = sorted(list_info, key=itemgetter('changedTime'))
     cast_time = time.time() - start_time
     logger.info("补全信息及排序{}".format(cast_time))
