@@ -3,9 +3,9 @@ import os
 # ENV_TYPE = os.environ.get('ENV_TYPE', '')
 # print(ENV_TYPE)
 # 线上
-# PRODUCTION_ENV = True
+PRODUCTION_ENV = True
 # 本地
-PRODUCTION_ENV = False
+# PRODUCTION_ENV = False
 
 DB_USER_NAME = "online_db_accout" if PRODUCTION_ENV else "root"
 DB_USER_PW = "JdNH9QN52Nd7Pox58J7WmaD5nLiQ" if PRODUCTION_ENV else "!Syy950507"
