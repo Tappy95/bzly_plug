@@ -425,8 +425,7 @@ async def get_ibxcallback(request):
             app_key=r_json.get('app_key'),
             device=r_json.get('device'),
             device_info=r_json.get('device_info'),
-            target_id=r_json.get('target_id'),
-            notify_url=IBX_NOTIFY_URL
+            target_id=r_json.get('target_id')
         )
         if not check_key:
             return web.json_response({"code": 0, "message": "验签失败"})
@@ -501,8 +500,7 @@ async def get_ibxcallback(request):
 @routes.post('/ibxtaskcallback')
 async def post_ibxtaskcallback(request):
     connection = request['db_connection']
-    r_json = await request.json()
-    print(r_json)
+    r_json = await request.post()
     is_ordernum = select([t_tp_ibx_callback]).where(
         t_tp_ibx_callback.c.order_id == r_json.get('order_id')
     )
@@ -515,7 +513,7 @@ async def post_ibxtaskcallback(request):
         callback_params = {
             "app_key": r_json.get('app_key'),
             "device": r_json.get('device'),
-            "device_info": int(r_json.get('device_info')),
+            "device_info": str(r_json.get('device_info')),
             "target_id": r_json.get('target_id'),
             "unit": r_json.get('unit'),
             "time_end": int(r_json.get('time_end')),
@@ -535,8 +533,7 @@ async def post_ibxtaskcallback(request):
             app_key=r_json.get('app_key'),
             device=r_json.get('device'),
             device_info=r_json.get('device_info'),
-            target_id=r_json.get('target_id'),
-            notify_url=IBX_NOTIFY_URL
+            target_id=r_json.get('target_id')
         )
         if not check_key:
             return web.json_response({"code": 0, "message": "验签失败"})
