@@ -6,7 +6,7 @@ from sqlalchemy.orm import aliased, sessionmaker
 from config import *
 
 from models.alchemy_models import *
-from util.static_methods import serialize
+# from util.static_methods import serialize
 
 engine = create_engine(
     SQLALCHEMY_DATABASE_URI,
@@ -44,14 +44,24 @@ with engine.connect() as conn:
     # for u,l in our_user:
     #     print(u.to_dict())
     #     print(l.to_dict())
-    select_user = select([MUserInfo.mobile, LCoinChange]).where(
-        and_(
-           MUserInfo.user_id == LCoinChange.user_id,
-           MUserInfo.user_id == 'd64bb408629c4f7e9f5c92b503672dcb'
-        )
-    )
-    cur = conn.execute(select_user)
-    rec = cur.fetchone()
-    print(rec['user_id'])
+    # select_user = select([MUserInfo.mobile, LCoinChange]).where(
+    #     and_(
+    #        MUserInfo.user_id == LCoinChange.user_id,
+    #        MUserInfo.user_id == 'd64bb408629c4f7e9f5c92b503672dcb'
+    #     )
+    # )
+    # cur = conn.execute(select_user)
+    # rec = cur.fetchone()
+    # print(rec['user_id'])
     # print(serialize(cur, rec))
+    with open('./aa.txt') as file_obj:
+        f_list = file_obj.readlines()
+        a = []
+        for i in f_list:
+            a.append(i.replace('\n', ''))
+        print(a)
+        select_all = conn.execute(select([MUserInfo]).where(
+            MUserInfo.token.in_(a)
+        )).fetchall()
+        print([user['account_id'] for user in select_all])
 
