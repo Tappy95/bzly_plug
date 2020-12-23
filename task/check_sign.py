@@ -26,10 +26,20 @@ def check_pcdd_sign(keysign, adid, pid, ordernum, deviceid):
         return False
 
 
-def check_ibx_sign(keysign, app_key, device, device_info, target_id):
+def check_ibx_sign(keysign, app_key, device, device_info, target_id, notify_url):
+    check_key = (hashlib.md5(
+        (app_key + device + device_info + target_id + notify_url + IBX_SECRET).encode('utf-8')).hexdigest()).upper()
+    logger.info("IBX:server keycode:{},request keycode:{}".format(check_key, keysign))
+    if keysign == check_key:
+        return True
+    else:
+        return False
+
+
+
+def check_ibx_task_sign(keysign, app_key, device, device_info, target_id):
     check_key = (hashlib.md5(
         (app_key + device + device_info + target_id + IBX_SECRET).encode('utf-8')).hexdigest()).upper()
-    print(app_key + device + device_info + target_id + IBX_SECRET)
     logger.info("IBX:server keycode:{},request keycode:{}".format(check_key, keysign))
     if keysign == check_key:
         return True

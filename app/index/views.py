@@ -18,7 +18,8 @@ from models.alchemy_models import MUserInfo, t_tp_pcdd_callback, PDictionary, t_
     TpVideoCallback, MUserLeader
 from task.callback_task import fission_schema, cash_exchange, select_user_id, get_channel_user_ids, get_callback_infos, \
     today_user_sign, select_admin_user_id
-from task.check_sign import check_xw_sign, check_ibx_sign, check_jxw_sign, check_yw_sign, check_dy_sign, check_zb_sign
+from task.check_sign import check_xw_sign, check_ibx_sign, check_jxw_sign, check_yw_sign, check_dy_sign, check_zb_sign, \
+    check_ibx_task_sign
 from util.log import logger
 from util.static_methods import serialize, get_pdictionary_key, get_video_reward_count
 from util.task_protocol import pub_to_nsq
@@ -425,7 +426,8 @@ async def get_ibxcallback(request):
             app_key=r_json.get('app_key'),
             device=r_json.get('device'),
             device_info=r_json.get('device_info'),
-            target_id=r_json.get('target_id')
+            target_id=r_json.get('target_id'),
+            notify_url=IBX_NOTIFY_URL
         )
         if not check_key:
             return web.json_response({"code": 0, "message": "验签失败"})
@@ -528,7 +530,7 @@ async def post_ibxtaskcallback(request):
             "status": 0,
             "update_time": datetime.now().strftime('%Y-%m-%d %H:%M:%S')
         }
-        check_key = check_ibx_sign(
+        check_key = check_ibx_task_sign(
             keysign=r_json.get('sign'),
             app_key=r_json.get('app_key'),
             device=r_json.get('device'),
@@ -566,8 +568,8 @@ async def post_ibxtaskcallback(request):
         )
         cur_ctm = await connection.execute(select_coin_to_money)
         rec_ctm = await cur_ctm.fetchone()
-        # task_coin = callback_params['user_reward'] * int(rec_ctm['dic_value'])
-        task_coin = float(callback_params['user_reward'])
+        task_coin = callback_params['user_reward'] * int(rec_ctm['dic_value'])
+        # task_coin = float(callback_params['user_reward'])
 
         c_result = await cash_exchange(
             connection,
