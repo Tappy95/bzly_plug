@@ -28,12 +28,13 @@ def update_rank_user():
     cur_hour = int(datetime.fromtimestamp(time.time()).strftime('%H'))
     cur_date = time.strftime('%Y-%m-%d', time.localtime(time.time()))
     range_coin = 1
-    range_coin_after = 2 + cur_hour*5
+    range_coin_after = 6 + cur_hour*4
     with engine.connect() as conn:
         select_rank_machine = conn.execute(select([LRankMachine])).fetchall()
         # rank_machine = random.sample(select_rank_machine, 10)
         fakers = []
-        for user in select_rank_machine:
+        key = random.randint(5,20)
+        for idx, user in enumerate(select_rank_machine):
             select_exist_rank = conn.execute(select([LRankCoin]).where(
                 and_(
                     LRankCoin.mobile == user['mobile'],
@@ -55,6 +56,8 @@ def update_rank_user():
                 "real_data": 2,
                 "reward_amount": 0,
             }
+            if idx == key or idx == key + 5 or idx == key + 10:
+                faker['coin_balance'] += random.randint(50000, 100000)
             fakers.append(faker)
 
         # 插入真实用户
