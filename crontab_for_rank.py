@@ -28,7 +28,7 @@ def update_rank_user():
     cur_hour = int(datetime.fromtimestamp(time.time()).strftime('%H'))
     cur_date = time.strftime('%Y-%m-%d', time.localtime(time.time()))
     range_coin = 1
-    range_coin_after = 2 + cur_hour
+    range_coin_after = 2 + cur_hour*5
     with engine.connect() as conn:
         select_rank_machine = conn.execute(select([LRankMachine])).fetchall()
         # rank_machine = random.sample(select_rank_machine, 10)
@@ -56,8 +56,41 @@ def update_rank_user():
                 "reward_amount": 0,
             }
             fakers.append(faker)
+
+        # 插入真实用户
+        select_users = conn.execute(select([MUserInfo])).fetchall()
+        now = datetime.now()
+        zeroToday = now - timedelta(hours=now.hour, minutes=now.minute, seconds=now.second, microseconds=now.microsecond)
+        # 获取23:59:59
+        lastToday = zeroToday + timedelta(hours=23, minutes=59, seconds=59)
+        zeroTodaytime = time.mktime(zeroToday.timetuple()) * 1000
+        lastTodaytime = time.mktime(lastToday.timetuple()) * 1000
+        for user in select_users:
+            select_user_coin = conn.execute(select([LCoinChange]).where(
+                and_(
+                    LCoinChange.user_id == user['user_id'],
+                    LCoinChange.changed_time > zeroTodaytime,
+                    LCoinChange.changed_time < lastTodaytime
+                )
+            )).fetchall()
+            sum_user_coin = sum([coin_change['amount'] for coin_change in select_user_coin])
+            real_user = {
+                "rank_type": 1,
+                "rank_order": 1,
+                "image_url": user['profile'],
+                "alias_name": "",
+                "mobile": user['mobile'],
+                "user_id": user['mobile'],
+                "coin_balance": sum_user_coin,
+                "rank_date": cur_date,
+                "create_time": int(time.time() * 1000),
+                "real_data": 1,
+                "reward_amount": 0,
+            }
+            fakers.append(real_user)
+
         fakers = sorted(fakers, key=lambda k: k['coin_balance'], reverse=True)
-        for idx, fake in enumerate(fakers):
+        for idx, fake in enumerate(fakers[:30]):
             select_exist_rank = conn.execute(select([LRankCoin]).where(
                 and_(
                     LRankCoin.mobile == fake['mobile'],
@@ -65,6 +98,18 @@ def update_rank_user():
                 )
             )).fetchone()
             fake['rank_order'] = idx + 1
+            if idx+1 == 1:
+                fake['reward_amount'] = 1280000
+            elif idx+1 == 2:
+                fake['reward_amount'] = 780000
+            elif idx+1 == 3:
+                fake['reward_amount'] = 380000
+            elif idx+1 == 4:
+                fake['reward_amount'] = 280000
+            elif idx+1 == 5:
+                fake['reward_amount'] = 160000
+            else:
+                fake['reward_amount'] = 80000
             if select_exist_rank:
                 update_rank = update(LRankCoin).where(
                     LRankCoin.id == select_exist_rank['id']
@@ -504,10 +549,10 @@ def update_user_leader():
 
 if __name__ == '__main__':
     scheduler = BlockingScheduler()
-    scheduler.add_job(update_rank_user, "interval", minutes=60)
+    scheduler.add_job(update_rank_user, "interval", minutes=60, next_run_time=datetime.now())
     scheduler.add_job(update_enddate_invite, "interval", minutes=10)
     scheduler.add_job(insert_new_partner, "interval", minutes=5)
-    scheduler.add_job(update_activity, "interval", hours=4, next_run_time=datetime.now())
+    scheduler.add_job(update_activity, "interval", hours=4)
     scheduler.add_job(update_partner_status, "interval", hours=4)
     scheduler.add_job(update_leader, "interval", minutes=2)
     scheduler.add_job(update_user_qilin, "interval", minutes=2)
