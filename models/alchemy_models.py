@@ -2187,7 +2187,6 @@ class MWageLevel(Base):
     update_time = Column(DateTime, info='更新时间')
 
 
-
 class MWageRecord(Base):
     __tablename__ = 'm_wage_record'
 
@@ -2199,3 +2198,11 @@ class MWageRecord(Base):
     current_video = Column(Integer, info='已完成视频任务数目')
     status = Column(Integer, info='0未接取,1已接取,2已结算')
     update_time = Column(DateTime, info='更新时间')
+
+
+class RealPhoneNumber(Base):
+    __tablename__ = 'real_phone_number'
+
+    id = Column(Integer, primary_key=True, nullable=False)
+    phonenumber = Column(Integer, primary_key=True, nullable=False)
+    status = Column(Integer)

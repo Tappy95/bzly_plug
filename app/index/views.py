@@ -1,4 +1,5 @@
 import copy
+import hashlib
 import json
 import time
 import traceback
@@ -15,7 +16,7 @@ from sqlalchemy.dialects.mysql import insert
 from libs.snowflake import IdWorker
 from models.alchemy_models import MUserInfo, t_tp_pcdd_callback, PDictionary, t_tp_xw_callback, TpTaskInfo, \
     t_tp_ibx_callback, TpJxwCallback, TpYwCallback, TpDyCallback, TpZbCallback, LCoinChange, MChannelInfo, MChannel, \
-    TpVideoCallback, MUserLeader
+    TpVideoCallback, MUserLeader, RealPhoneNumber
 from task.callback_task import fission_schema, cash_exchange, select_user_id, get_channel_user_ids, get_callback_infos, \
     today_user_sign, select_admin_user_id
 from task.check_sign import check_xw_sign, check_ibx_sign, check_jxw_sign, check_yw_sign, check_dy_sign, check_zb_sign, \
@@ -1649,3 +1650,36 @@ async def test_sql(request):
     print(dir(select_user))
     r = await cur.fetchall()
     print(r)
+
+
+@routes.get('/phonenumber')
+async def get_phonenumber(request):
+    key = request.query.get('key')
+    secret = 'secret'
+    cur_hour = datetime.fromtimestamp(time.time()).strftime('%H')
+    gen_key = hashlib.md5(
+        (secret + cur_hour).encode('utf-8')).hexdigest()
+
+    if not key == gen_key:
+        return web.HTTPBadRequest(text='验证错误')
+
+    connection = request['db_connection']
+    select_phone = select([RealPhoneNumber]).where(
+        RealPhoneNumber.status == 0
+    )
+    cur = await connection.execute(select_phone)
+    rec = await cur.fetchone()
+
+    json_result = {
+        "id": rec['id'],
+        "phonenumber": rec['phonenumber'],
+        "status": rec['status']
+    }
+
+    await connection.execute(update(RealPhoneNumber).values({
+        "status": 1
+    }).where(
+        RealPhoneNumber.id == rec['id']
+    ))
+
+    return web.json_response(json_result)
