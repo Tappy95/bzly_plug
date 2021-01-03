@@ -1388,12 +1388,18 @@ async def get_coinchange(request):
                             MUserInfo.channel_code == 'scq',
                             MUserInfo.channel_code == 'sxmn',
                             MUserInfo.channel_code == 'ssld',
+                            MUserInfo.channel_code == 'scjl',
+                            MUserInfo.channel_code == 'szj',
+                            MUserInfo.channel_code == 'sqy',
                             MUserInfo.parent_channel_code == 'scjn',
                             MUserInfo.parent_channel_code == 'slxq',
                             MUserInfo.parent_channel_code == 'shq',
                             MUserInfo.parent_channel_code == 'scq',
                             MUserInfo.parent_channel_code == 'sxmn',
-                            MUserInfo.parent_channel_code == 'ssld'
+                            MUserInfo.parent_channel_code == 'ssld',
+                            MUserInfo.parent_channel_code == 'scjl',
+                            MUserInfo.parent_channel_code == 'szj',
+                            MUserInfo.parent_channel_code == 'sqy'
                         )
                     )
                 else:
