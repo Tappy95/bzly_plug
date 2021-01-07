@@ -2206,3 +2206,29 @@ class RealPhoneNumber(Base):
     id = Column(Integer, primary_key=True, nullable=False)
     phonenumber = Column(Integer, primary_key=True, nullable=False)
     status = Column(Integer)
+
+
+class TpTjCallback(Base):
+    __tablename__ = 'tp_tj_callback'
+
+    ID = Column(String(32), primary_key=True, comment='\t\\r\\n唯一性订单ID')
+    MtIDUser = Column(String(64), comment='媒体方平台的用户ID')
+    IMEI = Column(String(64), comment='安卓时传送该参数')
+    MtId = Column(String(64), comment='媒体ID（即AppId）')
+    IDUser = Column(String(64), comment='91淘金平台用户ID')
+    UserFee = Column(Float(10), comment='用户广告单价（奖励金额），单位：元\\r\\n\\r\\n2位小数点 float 类型，不会乘以自定义汇率，为原始数值')
+    MtFee = Column(Float(10), comment='媒体广告单价，单位：元\\r\\n\\r\\n2位小数点 float 类型，不会乘以自定义汇率，为原始数值')
+    DoneTime = Column(BIGINT(20), comment='完成任务时间（秒级整形时间戳格式）')
+    IDTask = Column(String(64), comment='任务ID（一般用于API数据版接口接入方式）')
+    Note = Column(String(64), comment='订单备注，【示例】完成任务：麻将大亨-累计赢金50万')
+    sign = Column(String(64), comment='签名')
+    TaskGroup = Column(INTEGER(2), comment='所属任务类型ID')
+    MtGetFee = Column(Float(10), comment='媒体分成金额，两位小数点 float 类型，单位：元')
+    TaskIndex = Column(INTEGER(2), comment='子任务序号（对应API数据版详情接口里的参数TaskIndex）')
+    TaskSubIndex = Column(INTEGER(2), comment='子任务步骤序号（对应API数据版详情接口里的参数TaskSubIndex）')
+    AppName = Column(String(18), comment='广告APP名称')
+    AppIcon = Column(String(128), comment='广告APP ICON地址')
+    SubtaskName = Column(String(64), comment='子任务内容（即：任务要求）')
+    OAID = Column(String(64), comment='Android10或以上设备唯一性（仅Android有，IOS无）')
+    status = Column(INTEGER, comment='1已发,0未发')
+    update_time = Column(DateTime, comment='更新时间')
