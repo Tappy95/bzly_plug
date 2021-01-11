@@ -16,11 +16,11 @@ from sqlalchemy.dialects.mysql import insert
 from libs.snowflake import IdWorker
 from models.alchemy_models import MUserInfo, t_tp_pcdd_callback, PDictionary, t_tp_xw_callback, TpTaskInfo, \
     t_tp_ibx_callback, TpJxwCallback, TpYwCallback, TpDyCallback, TpZbCallback, LCoinChange, MChannelInfo, MChannel, \
-    TpVideoCallback, MUserLeader, RealPhoneNumber
+    TpVideoCallback, MUserLeader, RealPhoneNumber, TpTjCallback
 from task.callback_task import fission_schema, cash_exchange, select_user_id, get_channel_user_ids, get_callback_infos, \
     today_user_sign, select_admin_user_id
 from task.check_sign import check_xw_sign, check_ibx_sign, check_jxw_sign, check_yw_sign, check_dy_sign, check_zb_sign, \
-    check_ibx_task_sign
+    check_ibx_task_sign, check_tj_sign
 from util.log import logger
 from util.static_methods import serialize, get_pdictionary_key, get_video_reward_count
 from util.task_protocol import pub_to_nsq
@@ -977,6 +977,141 @@ async def get_dycallback(request):
     return web.json_response(json_result)
 
 
+# 多游回调
+@routes.post('/tjcallback')
+async def post_tjcallback(request):
+    connection = request['db_connection']
+    r_post = await request.post()
+    print(r_post)
+    # 获取参数
+    ID = r_post.get("ID")
+    MtIDUser = r_post.get("MtIDUser")
+    IMEI = r_post.get("IMEI")
+    MtId = r_post.get("MtId")
+    IDUser = r_post.get("IDUser")
+    UserFee = r_post.get("UserFee")
+    MtFee = r_post.get("MtFee")
+    DoneTime = r_post.get("DoneTime")
+    IDTask = r_post.get("IDTask")
+    Note = r_post.get("Note")
+    ExtParams = eval(r_post.get("ExtParams").replace('null', '""'))
+    AppName = ExtParams['AppName']
+    AppIcon = ExtParams['AppIcon']
+    SubtaskName = ExtParams['SubtaskName']
+    OAID = ExtParams['OAID']
+    TaskGroup = ExtParams['TaskGroup']
+    MtGetFee = ExtParams['MtGetFee']
+    TaskIndex = ExtParams['TaskIndex']
+    TaskSubIndex = ExtParams['TaskSubIndex']
+    sign = r_post.get("sign")
+    deal = {
+        "ID": ID,
+        "MtIDUser": MtIDUser,
+        "IMEI": IMEI,
+        "MtId": MtId,
+        "IDUser": IDUser,
+        "UserFee": float(UserFee),
+        "MtFee": float(MtFee),
+        "DoneTime": int(DoneTime),
+        "IDTask": IDTask,
+        "Note": Note,
+        "sign": sign,
+        "TaskGroup": int(TaskGroup),
+        "MtGetFee": float(MtGetFee),
+        "TaskIndex": int(TaskIndex),
+        "TaskSubIndex": int(TaskSubIndex),
+        "AppName": AppName,
+        "AppIcon": AppIcon,
+        "SubtaskName": SubtaskName,
+        "OAID": OAID,
+        "status": 0,
+        "update_time": datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+    }
+
+    is_ordernum = select([TpTjCallback]).where(
+            TpTjCallback.ID == ID
+    )
+    cursor = await connection.execute(is_ordernum)
+    record = await cursor.fetchone()
+    if record:
+        logger.info("订单已存在")
+        return web.Response(text='ok')
+
+    try:
+        check_key = check_tj_sign(
+            r_post=r_post
+        )
+        if not check_key:
+            return web.json_response({"code": 403, "success": "false"})
+        deal['MtIDUser'] = await select_user_id(connection, deal['MtIDUser'])
+        ins = insert(TpTjCallback)
+        insert_stmt = ins.values(deal)
+        on_duplicate_key_stmt = insert_stmt.on_duplicate_key_update(
+            ID=insert_stmt.inserted.ID,
+            MtIDUser=insert_stmt.inserted.MtIDUser,
+            IMEI=insert_stmt.inserted.IMEI,
+            MtId=insert_stmt.inserted.MtId,
+            IDUser=insert_stmt.inserted.IDUser,
+            UserFee=insert_stmt.inserted.UserFee,
+            MtFee=insert_stmt.inserted.MtFee,
+            DoneTime=insert_stmt.inserted.DoneTime,
+            IDTask=insert_stmt.inserted.IDTask,
+            Note=insert_stmt.inserted.Note,
+            sign=insert_stmt.inserted.sign,
+            TaskGroup=insert_stmt.inserted.TaskGroup,
+            MtGetFee=insert_stmt.inserted.MtGetFee,
+            TaskIndex=insert_stmt.inserted.TaskIndex,
+            TaskSubIndex=insert_stmt.inserted.TaskSubIndex,
+            AppName=insert_stmt.inserted.AppName,
+            AppIcon=insert_stmt.inserted.AppIcon,
+            SubtaskName=insert_stmt.inserted.SubtaskName,
+            OAID=insert_stmt.inserted.OAID,
+            status=insert_stmt.inserted.status,
+            update_time=insert_stmt.inserted.update_time
+        )
+        await connection.execute(on_duplicate_key_stmt)
+
+        # 查询金币比列
+        select_coin_to_money = select([PDictionary]).where(
+            PDictionary.dic_name == "coin_to_money"
+        )
+        cur_ctm = await connection.execute(select_coin_to_money)
+        rec_ctm = await cur_ctm.fetchone()
+        task_coin = deal['UserFee'] * int(rec_ctm['dic_value'])
+        # task_coin = deal['price']
+
+        c_result = await cash_exchange(
+            connection,
+            user_id=deal['MtIDUser'],
+            amount=task_coin,
+            changed_type=7,
+            reason="91淘金任务奖励",
+            remarks=deal['AppName'] + deal['Note'],
+            flow_type=1
+        )
+        # if "充值" not in deal['Note']:
+        #         #     fs_result = await fission_schema(
+        #         #         connection,
+        #         #         aimuser_id=deal['uid'],
+        #         #         task_coin=task_coin
+        #         #     )
+        #         # else:
+        #         #     fs_result = True
+        fs_result = True
+        if c_result and fs_result:
+            update_callback_status = update(TpTjCallback).values({
+                "status": 1
+            }).where(
+                    TpZbCallback.uid == deal['ID']
+            )
+            await connection.execute(update_callback_status)
+        result_text = 'ok'
+    except Exception as e:
+        logger.info(e)
+        logger.info(traceback.print_exc())
+        result_text = 'error'
+    return web.Response(text=result_text)
+
 # 职伴回调
 @routes.post('/zbcallback')
 async def post_zbcallback(request):
@@ -1393,6 +1528,8 @@ async def get_coinchange(request):
                             MUserInfo.channel_code == 'sll',
                             MUserInfo.channel_code == 'slxs',
                             MUserInfo.channel_code == 'slyz',
+                            MUserInfo.channel_code == 'szj',
+                            MUserInfo.channel_code == 'sqy',
                             MUserInfo.parent_channel_code == 'scjn',
                             MUserInfo.parent_channel_code == 'slxq',
                             MUserInfo.parent_channel_code == 'shq',
@@ -1403,7 +1540,9 @@ async def get_coinchange(request):
                             MUserInfo.parent_channel_code == 'szy',
                             MUserInfo.parent_channel_code == 'sll',
                             MUserInfo.parent_channel_code == 'slxs',
-                            MUserInfo.parent_channel_code == 'slyz'
+                            MUserInfo.parent_channel_code == 'slyz',
+                            MUserInfo.parent_channel_code == 'szj',
+                            MUserInfo.parent_channel_code == 'sqy'
                         )
                     )
                 else:
@@ -1662,7 +1801,6 @@ async def test_sql(request):
     print(r)
 
 
-# 获取未使用手机号
 @routes.get('/phonenumber')
 async def get_phonenumber(request):
     key = request.query.get('key')

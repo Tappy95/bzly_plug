@@ -35,7 +35,7 @@ def get_real_id():
 
 def get_phone_number():
     with engine.connect() as conn:
-        with open('./guangzhou.txt') as file:
+        with open('./zhuhai.txt') as file:
             f_list = file.readlines()
             results = []
             for i in f_list:
@@ -51,5 +51,32 @@ def get_phone_number():
         conn.execute(insert(RealPhoneNumber).values(results))
 
 
+def create_fake_coinchange():
+    with engine.connect() as conn:
+        select_coinchange = conn.execute(select([LCoinChange]).where(
+            and_(
+                LCoinChange.changed_time <= 1609486855000,
+                LCoinChange.changed_type == 7
+            )
+        ).limit(5000)).fetchall()
+        for result in select_coinchange:
+            if result['amount'] > 100000:
+                continue
+            the_chang = {
+                'user_id': 'dce96420b0b740b0b63beae4f200e09c',
+                "amount": result['amount'],
+                "flow_type": result['flow_type'],
+                "changed_type": result['changed_type'],
+                "changed_time": result['changed_time'] + 90000000,
+                "status": result['status'],
+                "account_type": result['account_type'],
+                "audit_time": result['audit_time'],
+                "reason": result['reason'],
+                "remarks": result['remarks'],
+                "coin_balance": result['coin_balance'],
+            }
+            conn.execute(insert(LCoinChange).values(the_chang))
+
+
 if __name__ == '__main__':
-    get_real_id()
+    get_phone_number()

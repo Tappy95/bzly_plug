@@ -1,3 +1,5 @@
+import base64
+
 import copy
 import hashlib
 from urllib.parse import quote
@@ -105,6 +107,24 @@ def check_zb_sign(r_post):
     print(before_md5)
     check_key = (hashlib.md5(before_md5.encode('utf-8')).hexdigest()).upper()
     logger.info("ZB:server keycode:{},request keycode:{}".format(check_key, keysign))
+    if keysign == check_key:
+        return True
+    else:
+        return False
+
+
+def check_tj_sign(r_post):
+    r_dict = {**r_post}
+    before_md5 = ""
+    keysign = r_dict.pop("sign")
+    for idx, key in enumerate(sorted(r_dict)):
+        str_ele = r_dict[key]
+        before_md5 += str_ele+"#"
+    before_md5 += TJ_APPKEY
+    base64_before_md5 = base64.b64encode(before_md5.encode())
+    print(before_md5)
+    check_key = (hashlib.md5(base64_before_md5).hexdigest()).lower()
+    logger.info("TJ:server keycode:{},request keycode:{}".format(check_key, keysign))
     if keysign == check_key:
         return True
     else:

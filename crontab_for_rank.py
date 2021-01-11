@@ -553,18 +553,18 @@ def update_user_leader():
 
 
 if __name__ == '__main__':
-    # scheduler = BlockingScheduler()
-    # scheduler.add_job(update_rank_user, "interval", minutes=60, next_run_time=datetime.now())
-    # scheduler.add_job(update_enddate_invite, "interval", minutes=10)
-    # scheduler.add_job(insert_new_partner, "interval", minutes=5)
-    # scheduler.add_job(update_activity, "interval", hours=4)
-    # scheduler.add_job(update_partner_status, "interval", hours=4)
-    # scheduler.add_job(update_leader, "interval", minutes=2)
-    # scheduler.add_job(update_user_qilin, "interval", minutes=2)
-    # scheduler.add_job(update_user_leader, "interval", minutes=5)
-    #
-    # # scheduler.add_job(update_checkpoint_record, "interval", minutes=2)
-    # # scheduler.add_job(update_enddate_invite, "interval", seconds=2)
-    # # scheduler.add_job(my_clock, "cron", hour='21', minute='48')
-    # scheduler.start()
-    update_rank_user()
+    scheduler = BlockingScheduler()
+    scheduler.add_job(update_rank_user, "interval", minutes=60)
+    scheduler.add_job(update_enddate_invite, "interval", minutes=10)
+    scheduler.add_job(insert_new_partner, "interval", minutes=5)
+    scheduler.add_job(update_activity, "interval", hours=4)
+    scheduler.add_job(update_partner_status, "interval", hours=4)
+    scheduler.add_job(update_leader, "interval", minutes=2, next_run_time=datetime.now())
+    scheduler.add_job(update_user_qilin, "interval", minutes=2)
+    scheduler.add_job(update_user_leader, "interval", minutes=5)
+
+    # scheduler.add_job(update_checkpoint_record, "interval", minutes=2)
+    # scheduler.add_job(update_enddate_invite, "interval", seconds=2)
+    # scheduler.add_job(my_clock, "cron", hour='21', minute='48')
+    scheduler.start()
+    # update_rank_user()
