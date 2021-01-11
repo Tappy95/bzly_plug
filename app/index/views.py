@@ -1388,12 +1388,22 @@ async def get_coinchange(request):
                             MUserInfo.channel_code == 'scq',
                             MUserInfo.channel_code == 'sxmn',
                             MUserInfo.channel_code == 'ssld',
+                            MUserInfo.channel_code == 'scjl',
+                            MUserInfo.channel_code == 'szy',
+                            MUserInfo.channel_code == 'sll',
+                            MUserInfo.channel_code == 'slxs',
+                            MUserInfo.channel_code == 'slyz',
                             MUserInfo.parent_channel_code == 'scjn',
                             MUserInfo.parent_channel_code == 'slxq',
                             MUserInfo.parent_channel_code == 'shq',
                             MUserInfo.parent_channel_code == 'scq',
                             MUserInfo.parent_channel_code == 'sxmn',
-                            MUserInfo.parent_channel_code == 'ssld'
+                            MUserInfo.parent_channel_code == 'ssld',
+                            MUserInfo.parent_channel_code == 'scjl',
+                            MUserInfo.parent_channel_code == 'szy',
+                            MUserInfo.parent_channel_code == 'sll',
+                            MUserInfo.parent_channel_code == 'slxs',
+                            MUserInfo.parent_channel_code == 'slyz'
                         )
                     )
                 else:
@@ -1652,6 +1662,7 @@ async def test_sql(request):
     print(r)
 
 
+# 获取未使用手机号
 @routes.get('/phonenumber')
 async def get_phonenumber(request):
     key = request.query.get('key')

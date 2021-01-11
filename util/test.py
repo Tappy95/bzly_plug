@@ -35,7 +35,7 @@ def get_real_id():
 
 def get_phone_number():
     with engine.connect() as conn:
-        with open('./zhuhai.txt') as file:
+        with open('./guangzhou.txt') as file:
             f_list = file.readlines()
             results = []
             for i in f_list:
@@ -52,4 +52,4 @@ def get_phone_number():
 
 
 if __name__ == '__main__':
-    get_phone_number()
+    get_real_id()
