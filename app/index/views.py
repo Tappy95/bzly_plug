@@ -977,7 +977,7 @@ async def get_dycallback(request):
     return web.json_response(json_result)
 
 
-# 多游回调
+# 淘金回调
 @routes.post('/tjcallback')
 async def post_tjcallback(request):
     connection = request['db_connection']
@@ -1102,7 +1102,7 @@ async def post_tjcallback(request):
             update_callback_status = update(TpTjCallback).values({
                 "status": 1
             }).where(
-                    TpZbCallback.uid == deal['ID']
+                    TpTjCallback.ID == deal['ID']
             )
             await connection.execute(update_callback_status)
         result_text = 'ok'
@@ -1397,6 +1397,15 @@ async def restart_callback(request):
             "defeat_status": 0,
             "success_status": 1,
             "title_column": "name"
+        },
+        "taojin":{
+            "table": TpTjCallback,
+            "order_column": "ID",
+            "user_column": "MtIDUser",
+            "user_money_column": "UserFee",
+            "defeat_status": 0,
+            "success_status": 1,
+            "title_column": "Note"
         }
     }
     # 判断表model类型
