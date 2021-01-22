@@ -1,3 +1,4 @@
+import csv
 from datetime import datetime
 
 from sqlalchemy import create_engine, select, update, and_, insert
@@ -67,7 +68,7 @@ def create_fake_coinchange():
                 "amount": result['amount'],
                 "flow_type": result['flow_type'],
                 "changed_type": result['changed_type'],
-                "changed_time": result['changed_time'] + 90000000,
+                "changed_time": result['changed_time'] + 60000000,
                 "status": result['status'],
                 "account_type": result['account_type'],
                 "audit_time": result['audit_time'],
@@ -77,6 +78,40 @@ def create_fake_coinchange():
             }
             conn.execute(insert(LCoinChange).values(the_chang))
 
+def select_daili_qian():
+    with open(f'./csvfile.csv', 'r',encoding='UTF-8') as csv_obj:
+        reader = csv.reader(csv_obj)
+        c_dict = {}
+        i_dict = {}
+        for row in reader:
+            if row[0] == '':
+                row[0] = 0
+
+            c_dict[int(float(row[0]))] = row[2]
+            i_dict[int(float(row[1]))] = row[3:]
+        data = []
+        with open('./results.csv', 'w', newline='', encoding='UTF-8') as recharge_obj:
+            write_recharge = csv.writer(recharge_obj)
+            for category_id, info in i_dict.items():
+                a_data = []
+                a_data.append(category_id)
+                if category_id in c_dict:
+                    if not c_dict[category_id]:
+                        a_data.append(0)
+                    else:
+                        a_data.append(c_dict[category_id])
+                else:
+                    a_data.append(0)
+                a_data.extend(info)
+                data.append(a_data)
+            write_recharge.writerows(data)
+
+
+def convert_csv():
+    import pandas as pd
+    data_xls = pd.read_excel('12.xlsx', 'Sheet1', index_col=None)
+    data_xls.to_csv('csvfile.csv', encoding='utf-8', index=False)
+
 
 if __name__ == '__main__':
-    get_phone_number()
+    select_daili_qian()
