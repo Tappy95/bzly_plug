@@ -32,6 +32,8 @@ def get_real_id():
                 MUserInfo.token.in_(a)
             )).fetchall()
             print([user['account_id'] for user in select_all])
+            with open('./bb.txt', 'w') as file_obj2:
+                file_obj2.writelines([user['user_id'] + ', ' + str(user['account_id']) + '\n' for user in select_all])
 
 
 def get_phone_number():
@@ -60,6 +62,7 @@ def create_fake_coinchange():
                 LCoinChange.changed_type == 7
             )
         ).limit(5000)).fetchall()
+        exist_money = 0
         for result in select_coinchange:
             if result['amount'] > 100000:
                 continue
@@ -68,7 +71,7 @@ def create_fake_coinchange():
                 "amount": result['amount'],
                 "flow_type": result['flow_type'],
                 "changed_type": result['changed_type'],
-                "changed_time": result['changed_time'] + 60000000,
+                "changed_time": result['changed_time'] + 39000000,
                 "status": result['status'],
                 "account_type": result['account_type'],
                 "audit_time": result['audit_time'],
@@ -76,10 +79,15 @@ def create_fake_coinchange():
                 "remarks": result['remarks'],
                 "coin_balance": result['coin_balance'],
             }
+            exist_money += result['amount']
+            print(exist_money)
+            # if exist_money >= 20000000:
+            #     break
             conn.execute(insert(LCoinChange).values(the_chang))
 
+
 def select_daili_qian():
-    with open(f'./csvfile.csv', 'r',encoding='UTF-8') as csv_obj:
+    with open(f'./csvfile.csv', 'r', encoding='UTF-8') as csv_obj:
         reader = csv.reader(csv_obj)
         c_dict = {}
         i_dict = {}
@@ -113,5 +121,24 @@ def convert_csv():
     data_xls.to_csv('csvfile.csv', encoding='utf-8', index=False)
 
 
+def update_user_money():
+    with open('./bb.txt', 'r') as file_obj:
+        a = file_obj.readlines()
+        for i in a:
+            b = i.split(',')
+            id = b[0],
+            money = int(float(b[1]) * 10000)
+            with engine.connect() as conn:
+                select_user = conn.execute(select([MUserInfo]).where(
+                    MUserInfo.account_id == id
+                )).fetchone()
+                print(id, select_user['coin'], money, select_user['coin'] + money)
+                conn.execute(update(MUserInfo).values({
+                    "coin": select_user['coin'] + money
+                }).where(
+                    MUserInfo.account_id == id
+                ))
+
+
 if __name__ == '__main__':
-    select_daili_qian()
+    create_fake_coinchange()
